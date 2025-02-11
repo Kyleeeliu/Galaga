@@ -272,14 +272,13 @@ canvas {
     font-size: 48px;
     color: #f00;
     text-shadow: 0 0 20px #f00;
-    animation: pulse 2s infinite;
+    animation: pulse 2s ease-in-out infinite;
 }
 
 .click-prompt {
     font-size: 12px;
     color: #fff;
-    opacity: 0;
-    animation: blink 1.5s infinite;
+    animation: pulse-fade 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
@@ -288,8 +287,17 @@ canvas {
     100% { transform: scale(1); text-shadow: 0 0 20px #f00; }
 }
 
-@keyframes blink {
-    0% { opacity: 0; }
-    50% { opacity: 1; }
-    100% { opacity: 0; }
+@keyframes pulse-fade {
+    0% { opacity: 0.2; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 0.2; transform: scale(0.95); }
+}
+
+.start-high-score {
+    position: absolute;
+    bottom: 40px;
+    font-size: 12px;
+    color: #ff0;
+    text-shadow: 0 0 10px #ff0;
+    animation: pulse-fade 2s ease-in-out infinite;
 } 

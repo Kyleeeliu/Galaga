@@ -124,13 +124,6 @@ class Game {
         // Add attack pattern indicators
         this.attackIndicators = [];
         
-        // Add difficulty indicator
-        this.difficultyIndicator = {
-            text: 'NORMAL',
-            alpha: 1,
-            duration: 180  // 3 seconds at 60fps
-        };
-        
         // Add wave system
         this.wave = 1;
         this.waveConfig = {
@@ -1044,12 +1037,38 @@ class Game {
             }
         });
 
+        // Check for escort collisions with player
+        this.formations.forEach(enemy => {
+            if (enemy.attacking && enemy.type === this.enemyTypes.ESCORT) {
+                // Check if escort hits player
+                if (this.checkCollision(this.player, enemy)) {
+                    // Create explosion
+                    this.createExplosion(
+                        enemy.currentX + enemy.width/2,
+                        enemy.currentY + enemy.height/2,
+                        enemy.type
+                    );
+                    
+                    // Remove escort
+                    enemy.currentX = -100;
+                    enemy.currentY = -100;
+                    enemy.attacking = false;
+                    
+                    // Play explosion sound
+                    this.sounds.explosion.play();
+                    
+                    // Damage player
+                    this.playerHit();
+                }
+            }
+        });
+
         // Update target indicators
         this.targetIndicators = this.targetIndicators.filter(indicator => {
             const enemy = indicator.enemy;
             
-            // Remove if enemy is gone or past player
-            if (enemy.currentX <= -50 || enemy.currentY > this.canvas.height) {
+            // Remove if enemy is gone, destroyed, or hits player
+            if (enemy.currentX <= -50 || enemy.currentY > this.canvas.height || !enemy.attacking) {
                 return false;
             }
             
@@ -1279,124 +1298,6 @@ class Game {
         });
         this.ctx.restore();
 
-        // Draw difficulty indicator
-        if (this.difficultyIndicator.alpha > 0) {
-            this.ctx.save();
-            this.ctx.fillStyle = `rgba(255, 255, 255, ${this.difficultyIndicator.alpha})`;
-            this.ctx.font = '16px "Press Start 2P"';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText(this.difficultyIndicator.text, this.canvas.width / 2, 50);
-            
-            // Draw difficulty-specific details
-            const settings = this.difficulties['normal'];
-            this.ctx.font = '8px "Press Start 2P"';
-            this.ctx.fillText(`SPEED: ${settings.enemySpeed}x`, this.canvas.width / 2, 70);
-            this.ctx.fillText(`SCORE: ${settings.scoreMultiplier}x`, this.canvas.width / 2, 85);
-            this.ctx.restore();
-        }
-
-        if (this.debugMode) {
-            // Draw player hitbox
-            this.drawHitbox(
-                this.player.x + this.player.width / 2,
-                this.player.y + this.player.height / 2,
-                this.player.width,
-                this.player.height,
-                '#0f0'
-            );
-
-            // Draw bullet hitboxes
-            this.bullets.forEach(bullet => {
-                this.drawHitbox(
-                    bullet.x,
-                    bullet.y,
-                    bullet.width,
-                    bullet.height,
-                    '#ff0'
-                );
-            });
-
-            // Draw enemy hitboxes
-            this.formations.forEach(enemy => {
-                if (enemy.currentX > -50) {
-                    const enemyType = enemy.isMegaBoss ? 'MEGA BOSS' :
-                                     enemy.type === this.enemyTypes.BOSS ? 'BOSS' :
-                                     enemy.type === this.enemyTypes.ESCORT ? 'ESCORT' :
-                                     'GRUNT';
-                    
-                    const healthLabel = `${enemyType} (${enemy.health})`;
-                    
-                    this.drawHitbox(
-                        enemy.currentX + enemy.width / 2,
-                        enemy.currentY + enemy.height / 2,
-                        enemy.width * 0.8,
-                        enemy.height * 0.8,
-                        enemy.attacking ? '#f00' : '#f0f',
-                        healthLabel
-                    );
-                }
-            });
-
-            // Draw power-up hitboxes with labels
-            this.powerUps.forEach(powerUp => {
-                const powerUpTypes = ['DOUBLE', 'SPEED', 'SHIELD'];
-                this.drawHitbox(
-                    powerUp.x + powerUp.width / 2,
-                    powerUp.y + powerUp.height / 2,
-                    powerUp.width,
-                    powerUp.height,
-                    '#0ff',
-                    powerUpTypes[powerUp.type]
-                );
-            });
-
-            // Draw enemy bullet hitboxes
-            this.enemyBullets.forEach(bullet => {
-                this.drawHitbox(
-                    bullet.x,
-                    bullet.y,
-                    bullet.width,
-                    bullet.height,
-                    bullet.color,
-                    'BULLET'
-                );
-            });
-
-            // Draw debug info in bottom right
-            this.ctx.fillStyle = '#fff';
-            this.ctx.font = '6px "Press Start 2P"';  // Smaller font
-            this.ctx.textAlign = 'right';  // Align text to right
-            
-            const rightEdge = this.canvas.width - 10;  // 10px padding from right
-            const bottomStart = this.canvas.height - 60;  // Start 60px from bottom
-            const lineHeight = 8;  // Reduced line spacing
-            
-            this.ctx.fillText('DEBUG MODE (H)', rightEdge, bottomStart);
-            
-            // Add current formation pattern
-            const currentPattern = this.wave % 3 === 0 ? 'BOSS WAVE' : 
-                ['ARROW', 'SPIRAL', 'FORTRESS'][this.wave % 3];
-            this.ctx.fillText(`PATTERN: ${currentPattern}`, rightEdge, bottomStart + lineHeight);
-            
-            // Add enemies left counter
-            const enemiesLeft = this.formations.filter(enemy => 
-                enemy.currentX > -50 && enemy.currentY < this.canvas.height
-            ).length;
-            this.ctx.fillText(`ENEMIES: ${enemiesLeft}`, rightEdge, bottomStart + lineHeight * 2);
-            
-            this.ctx.fillText(`ENTITIES: ${this.formations.length + this.bullets.length + this.powerUps.length}`, 
-                rightEdge, bottomStart + lineHeight * 3);
-            
-            // Add enemy type breakdown
-            const bosses = this.formations.filter(e => e.type === this.enemyTypes.BOSS && e.currentX > -50).length;
-            const escorts = this.formations.filter(e => e.type === this.enemyTypes.ESCORT && e.currentX > -50).length;
-            const grunts = this.formations.filter(e => e.type === this.enemyTypes.GRUNT && e.currentX > -50).length;
-            this.ctx.fillText(`B:${bosses} E:${escorts} G:${grunts}`, rightEdge, bottomStart + lineHeight * 4);
-            
-            this.ctx.fillText(`POS: ${Math.round(this.player.x)},${Math.round(this.player.y)}`, 
-                rightEdge, bottomStart + lineHeight * 5);
-        }
-
         // Draw wave transition
         if (this.waveTransition.active) {
             this.ctx.save();
@@ -1505,8 +1406,12 @@ class Game {
             this.ctx.restore();
         }
 
-        // Draw vertical boss health bar on left side
-        if (this.bossConfig.maxHealth > 0 && this.gameState === 'playing') {  // Only draw if boss exists AND game is active
+        // Draw vertical boss health bar on left side, with additional conditions
+        const bossExists = this.formations.some(enemy => 
+            enemy.isMegaBoss && enemy.currentX > -50
+        );
+        
+        if (this.bossConfig.maxHealth > 0 && this.gameState === 'playing' && bossExists) {
             const barWidth = 20;
             const barHeight = 200;
             const barX = 30;
@@ -1568,6 +1473,83 @@ class Game {
             this.ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size);
             this.ctx.restore();
         });
+
+        if (this.debugMode) {
+            // Draw player hitbox
+            this.drawHitbox(
+                this.player.x + this.player.width / 2,
+                this.player.y + this.player.height / 2,
+                this.player.width,
+                this.player.height,
+                '#0f0'
+            );
+
+            // Draw bullet hitboxes
+            this.bullets.forEach(bullet => {
+                this.drawHitbox(
+                    bullet.x,
+                    bullet.y,
+                    bullet.width,
+                    bullet.height,
+                    '#ff0'
+                );
+            });
+
+            // Draw enemy hitboxes
+            this.formations.forEach(enemy => {
+                if (enemy.currentX > -50) {
+                    const enemyType = enemy.isMegaBoss ? 'MEGA BOSS' :
+                                     enemy.type === this.enemyTypes.BOSS ? 'BOSS' :
+                                     enemy.type === this.enemyTypes.ESCORT ? 'ESCORT' :
+                                     'GRUNT';
+                    
+                    const healthLabel = `${enemyType} (${enemy.health})`;
+                    
+                    this.drawHitbox(
+                        enemy.currentX + enemy.width / 2,
+                        enemy.currentY + enemy.height / 2,
+                        enemy.width * 0.8,
+                        enemy.height * 0.8,
+                        enemy.attacking ? '#f00' : '#f0f',
+                        healthLabel
+                    );
+                }
+            });
+
+            // Draw debug info in bottom right
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '6px "Press Start 2P"';
+            this.ctx.textAlign = 'right';
+            
+            const rightEdge = this.canvas.width - 10;
+            const bottomStart = this.canvas.height - 60;
+            const lineHeight = 8;
+            
+            this.ctx.fillText('DEBUG MODE (H)', rightEdge, bottomStart);
+            
+            // Add current formation pattern
+            const currentPattern = this.wave % 3 === 0 ? 'BOSS WAVE' : 
+                ['ARROW', 'SPIRAL', 'FORTRESS'][this.wave % 3];
+            this.ctx.fillText(`PATTERN: ${currentPattern}`, rightEdge, bottomStart + lineHeight);
+            
+            // Add enemies left counter
+            const enemiesLeft = this.formations.filter(enemy => 
+                enemy.currentX > -50 && enemy.currentY < this.canvas.height
+            ).length;
+            this.ctx.fillText(`ENEMIES: ${enemiesLeft}`, rightEdge, bottomStart + lineHeight * 2);
+            
+            this.ctx.fillText(`ENTITIES: ${this.formations.length + this.bullets.length + this.powerUps.length}`, 
+                rightEdge, bottomStart + lineHeight * 3);
+            
+            // Add enemy type breakdown
+            const bosses = this.formations.filter(e => e.type === this.enemyTypes.BOSS && e.currentX > -50).length;
+            const escorts = this.formations.filter(e => e.type === this.enemyTypes.ESCORT && e.currentX > -50).length;
+            const grunts = this.formations.filter(e => e.type === this.enemyTypes.GRUNT && e.currentX > -50).length;
+            this.ctx.fillText(`B:${bosses} E:${escorts} G:${grunts}`, rightEdge, bottomStart + lineHeight * 4);
+            
+            this.ctx.fillText(`POS: ${Math.round(this.player.x)},${Math.round(this.player.y)}`, 
+                rightEdge, bottomStart + lineHeight * 5);
+        }
     }
     
     drawPlayer() {
@@ -1817,16 +1799,20 @@ class Game {
 
     restart() {
         this.fadeMusic(this.currentTrack, this.music.normal);
-        this.gameState = 'playing';  // Change from 'start' to 'playing'
+        this.gameState = 'title';  // Change to title instead of playing
         
         // Show/hide screens
         document.getElementById('gameOverScreen').classList.add('hidden');
+        document.getElementById('startScreen').classList.remove('hidden');
+        
+        // Update high score on start screen
+        document.querySelector('.start-high-score span').textContent = this.highScores['normal'] || 0;
         
         // Reset game state
         this.lives = 3;
         this.score = 0;
         this.wave = 1;
-        this.formations = this.createFormations();
+        this.formations = [];  // Don't create formations until game starts
         this.powerUps = [];
         this.bullets = [];
         this.deathAnimations = [];
