@@ -658,18 +658,31 @@ class Game {
         // Update attacking enemies with simpler movement
         this.formations.forEach(enemy => {
             if (enemy.attacking) {
-                const speed = 3;
-                
-                // Simple diving movement toward target
-                const dx = enemy.targetX - enemy.currentX;
-                const dy = enemy.targetY - enemy.currentY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance > speed) {
-                    enemy.currentX += (dx / distance) * speed;
-                    enemy.currentY += (dy / distance) * speed;
+                if (enemy.isMegaBoss) {
+                    // Boss stays in position but can shoot
+                    const dx = enemy.targetX - enemy.currentX;
+                    const moveSpeed = 1;
+                    
+                    // Gentle side-to-side movement
+                    enemy.currentX += Math.sin(Date.now() / 1000) * moveSpeed;
+                    
+                    // Keep boss within screen bounds
+                    enemy.currentX = Math.max(enemy.width/2, Math.min(this.canvas.width - enemy.width/2, enemy.currentX));
+                    
+                    // Boss shooting is handled in the shooting update section
                 } else {
-                    enemy.currentX = -100; // Move off screen when done
+                    // Regular enemy diving attack
+                    const speed = 3;
+                    const dx = enemy.targetX - enemy.currentX;
+                    const dy = enemy.targetY - enemy.currentY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > speed) {
+                        enemy.currentX += (dx / distance) * speed;
+                        enemy.currentY += (dy / distance) * speed;
+                    } else {
+                        enemy.currentX = -100; // Move off screen when done
+                    }
                 }
             }
         });
@@ -1248,12 +1261,20 @@ class Game {
             // Draw enemy hitboxes
             this.formations.forEach(enemy => {
                 if (enemy.currentX > -50) {
+                    const enemyType = enemy.isMegaBoss ? 'MEGA BOSS' :
+                                     enemy.type === this.enemyTypes.BOSS ? 'BOSS' :
+                                     enemy.type === this.enemyTypes.ESCORT ? 'ESCORT' :
+                                     'GRUNT';
+                    
+                    const healthLabel = `${enemyType} (${enemy.health})`;
+                    
                     this.drawHitbox(
                         enemy.currentX + enemy.width / 2,
                         enemy.currentY + enemy.height / 2,
-                        enemy.width * 0.8, // Show actual collision box size
+                        enemy.width * 0.8,
                         enemy.height * 0.8,
-                        enemy.attacking ? '#f00' : '#f0f'
+                        enemy.attacking ? '#f00' : '#f0f',
+                        healthLabel
                     );
                 }
             });
@@ -1714,36 +1735,62 @@ class Game {
     handleEnemyDestruction(enemy, bulletIndex) {
         this.bullets.splice(bulletIndex, 1);
         
-        // Reduce enemy health instead of instant destruction
-        enemy.health--;
-        if (enemy.health <= 0) {
-            if (enemy.isMegaBoss) {
-                // Boss death logic...
-            } else {
-                // Regular enemy death
+        if (enemy.isMegaBoss) {
+            // Boss takes damage only from bullets
+            this.bossConfig.currentHealth--;
+            if (this.bossConfig.currentHealth <= 0) {
+                // Boss death
                 this.createDeathAnimation(
                     enemy.currentX + enemy.width/2, 
                     enemy.currentY + enemy.height/2,
                     enemy.type
                 );
                 
-                enemy.currentX = -100;
-                enemy.currentY = -100;
-                enemy.inPosition = false;
-                enemy.attacking = false;
-                
-                // Scale score with wave number
-                const baseScore = enemy.type === this.enemyTypes.BOSS ? 300 :
-                                enemy.type === this.enemyTypes.ESCORT ? 200 : 100;
-                const scoreMultiplier = 1 + (this.wave * 0.1); // 10% more points each wave
-                this.score += Math.floor(baseScore * this.currentDifficultySettings.scoreMultiplier * scoreMultiplier);
+                // Award score
+                const bossScore = 1000 * Math.floor(this.wave / 3);
+                this.score += bossScore;
                 document.getElementById('scoreValue').textContent = this.score;
                 
-                this.sounds.explosion.play();
-                this.waveStats.enemiesDefeated++;
+                // Create power-up
+                this.createPowerUp(
+                    enemy.currentX + enemy.width/2,
+                    enemy.currentY + enemy.height/2
+                );
+                
+                // Clear all enemies
+                this.formations = this.formations.map(e => {
+                    e.currentX = -100;
+                    return e;
+                });
             }
+            this.sounds.explosion.play();
+            return;
+        }
+        
+        // Regular enemy destruction
+        enemy.health--;
+        if (enemy.health <= 0) {
+            this.createDeathAnimation(
+                enemy.currentX + enemy.width/2, 
+                enemy.currentY + enemy.height/2,
+                enemy.type
+            );
+            
+            enemy.currentX = -100;
+            enemy.currentY = -100;
+            enemy.inPosition = false;
+            enemy.attacking = false;
+            
+            // Scale score with wave number
+            const baseScore = enemy.type === this.enemyTypes.BOSS ? 300 :
+                             enemy.type === this.enemyTypes.ESCORT ? 200 : 100;
+            const scoreMultiplier = 1 + (this.wave * 0.1);
+            this.score += Math.floor(baseScore * this.currentDifficultySettings.scoreMultiplier * scoreMultiplier);
+            document.getElementById('scoreValue').textContent = this.score;
+            
+            this.sounds.explosion.play();
+            this.waveStats.enemiesDefeated++;
         } else {
-            // Hit effect for enemies that didn't die
             this.sounds.powerupHit.play();
         }
     }
@@ -1775,8 +1822,21 @@ class Game {
     }
 
     startAttack(enemy) {
+        // Only allow escort enemies to attack
+        if (enemy.type !== this.enemyTypes.ESCORT) return;
+        
+        // Limit number of attackers based on wave
+        const currentAttackers = this.formations.filter(e => e.attacking).length;
+        const maxAttackers = Math.min(2, Math.floor(1 + this.wave/4)); // Max 2 attackers, increases every 4 waves
+        
+        if (currentAttackers >= maxAttackers) return;
+        
+        // Attack chance increases with wave number
+        const attackChance = 0.2 + (this.wave * 0.03); // Starts at 20%, increases by 3% per wave
+        if (Math.random() > attackChance) return;
+        
         enemy.attacking = true;
-        enemy.pattern = 'DIVE';  // Simplify to just dive pattern
+        enemy.pattern = 'DIVE';
         enemy.patternProgress = 0;
         enemy.patternStartX = enemy.currentX;
         enemy.patternStartY = enemy.currentY;
