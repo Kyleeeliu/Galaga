@@ -1588,7 +1588,7 @@ class Game {
         }
 
         // Draw vertical boss health bar on left side
-        if (this.bossConfig.maxHealth > 0) {  // Only draw if boss exists
+        if (this.bossConfig.maxHealth > 0 && this.gameState === 'playing') {  // Only draw if boss exists AND game is active
             const barWidth = 20;
             const barHeight = 200;
             const barX = 30;
