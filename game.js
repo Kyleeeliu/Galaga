@@ -273,7 +273,14 @@ class Game {
             baseHealth: 15,         // Reduced from 20
             healthMultiplier: 1.3,  // Reduced from 1.5
             currentHealth: 0,
-            maxHealth: 0
+            maxHealth: 0,
+            powerScale: 1, // Base power scale
+            updatePowerScale: function(wave) {
+                // Increase boss power every 3 waves
+                this.powerScale = 1 + (Math.floor(wave / 3) * 0.3); // 30% stronger each boss wave
+                this.maxHealth = Math.ceil(this.baseHealth * Math.pow(this.healthMultiplier, Math.floor(wave / 3)));
+                this.currentHealth = this.maxHealth;
+            }
         };
         
         // Add movement patterns
@@ -589,6 +596,11 @@ class Game {
     }
 
     createEnemy(targetX, targetY, type, path, isMegaBoss = false) {
+        // Calculate power scaling based on wave number
+        const powerScale = 1 + (this.wave * 0.1); // 10% stronger each wave
+        const speedScale = 1 + (this.wave * 0.05); // 5% faster each wave
+        const healthScale = 1 + (Math.floor(this.wave / 3) * 0.2); // 20% more health every 3 waves
+
         return {
             currentX: path ? path.startX : targetX,
             currentY: path ? path.startY : -50,
@@ -596,18 +608,23 @@ class Game {
             targetY: targetY,
             width: isMegaBoss ? 90 : 30,
             height: isMegaBoss ? 90 : 30,
-            speed: this.currentDifficultySettings.enemySpeed,
+            speed: this.currentDifficultySettings.enemySpeed * speedScale,
             inPosition: false,
             attacking: false,
             type: type,
             animationFrame: 0,
-            bulletSpeed: 2 + (this.wave * 0.2),
+            bulletSpeed: (2 + (this.wave * 0.2)) * powerScale,
+            bulletDamage: Math.ceil(1 * powerScale),
             path: path,
             pathProgress: 0,
             isMegaBoss: isMegaBoss,
-            shootInterval: isMegaBoss ? 60 : 45,
-            shootCooldown: Math.floor(Math.random() * 120) + 60,  // Random initial delay
-            canShoot: false  // Add flag to control shooting
+            shootInterval: Math.max(20, isMegaBoss ? 60 : 45 - this.wave * 2), // Shoot faster as waves progress
+            shootCooldown: Math.floor(Math.random() * 120) + 60,
+            canShoot: false,
+            // Add health for regular enemies too
+            health: isMegaBoss ? 
+                this.bossConfig.maxHealth : 
+                Math.ceil(type === this.enemyTypes.ESCORT ? 2 * healthScale : 1 * healthScale)
         };
     }
     
@@ -638,6 +655,25 @@ class Game {
     update() {
         if (this.gameState !== 'playing') return;
         
+        // Update attacking enemies with simpler movement
+        this.formations.forEach(enemy => {
+            if (enemy.attacking) {
+                const speed = 3;
+                
+                // Simple diving movement toward target
+                const dx = enemy.targetX - enemy.currentX;
+                const dy = enemy.targetY - enemy.currentY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > speed) {
+                    enemy.currentX += (dx / distance) * speed;
+                    enemy.currentY += (dy / distance) * speed;
+                } else {
+                    enemy.currentX = -100; // Move off screen when done
+                }
+            }
+        });
+        
         // Check for wave completion
         const anyEnemiesLeft = this.formations.some(enemy => {
             // For boss wave, only check if boss exists and is alive
@@ -660,7 +696,14 @@ class Game {
                 baseHealth: 15,
                 healthMultiplier: 1.3,
                 currentHealth: 0,
-                maxHealth: 0
+                maxHealth: 0,
+                powerScale: 1, // Base power scale
+                updatePowerScale: function(wave) {
+                    // Increase boss power every 3 waves
+                    this.powerScale = 1 + (Math.floor(wave / 3) * 0.3); // 30% stronger each boss wave
+                    this.maxHealth = Math.ceil(this.baseHealth * Math.pow(this.healthMultiplier, Math.floor(wave / 3)));
+                    this.currentHealth = this.maxHealth;
+                }
             };
             
             // Advance wave
@@ -1671,75 +1714,38 @@ class Game {
     handleEnemyDestruction(enemy, bulletIndex) {
         this.bullets.splice(bulletIndex, 1);
         
-        if (enemy.isMegaBoss) {
-            this.bossConfig.currentHealth--;
-            if (this.bossConfig.currentHealth <= 0) {
-                // Clear ALL enemies immediately
-                this.formations = this.formations.map(e => {
-                    e.currentX = -100;
-                    return e;
-                });
-                
-                // Reset boss state
-                this.bossConfig = {
-                    baseHealth: 15,
-                    healthMultiplier: 1.3,
-                    currentHealth: 0,
-                    maxHealth: 0
-                };
-                
-                // Create death animation
+        // Reduce enemy health instead of instant destruction
+        enemy.health--;
+        if (enemy.health <= 0) {
+            if (enemy.isMegaBoss) {
+                // Boss death logic...
+            } else {
+                // Regular enemy death
                 this.createDeathAnimation(
                     enemy.currentX + enemy.width/2, 
                     enemy.currentY + enemy.height/2,
                     enemy.type
                 );
                 
-                // Award score and create power-up
-                const bossScore = 1000 * Math.floor(this.wave / 3);
-                this.score += bossScore;
+                enemy.currentX = -100;
+                enemy.currentY = -100;
+                enemy.inPosition = false;
+                enemy.attacking = false;
+                
+                // Scale score with wave number
+                const baseScore = enemy.type === this.enemyTypes.BOSS ? 300 :
+                                enemy.type === this.enemyTypes.ESCORT ? 200 : 100;
+                const scoreMultiplier = 1 + (this.wave * 0.1); // 10% more points each wave
+                this.score += Math.floor(baseScore * this.currentDifficultySettings.scoreMultiplier * scoreMultiplier);
                 document.getElementById('scoreValue').textContent = this.score;
-                this.createPowerUp(
-                    enemy.currentX + enemy.width/2,
-                    enemy.currentY + enemy.height/2
-                );
+                
+                this.sounds.explosion.play();
+                this.waveStats.enemiesDefeated++;
             }
-            this.sounds.explosion.play();
-            return;
+        } else {
+            // Hit effect for enemies that didn't die
+            this.sounds.powerupHit.play();
         }
-        
-        // Add chance for power-up from regular enemies
-        if (Math.random() < 0.05) {  // 5% chance per enemy
-            this.createPowerUp(
-                enemy.currentX + enemy.width/2,
-                enemy.currentY + enemy.height/2
-            );
-        }
-        
-        // Create death animation only
-        this.createDeathAnimation(
-            enemy.currentX + enemy.width/2, 
-            enemy.currentY + enemy.height/2,
-            enemy.type
-        );
-        
-        // Move enemy off screen and disable it
-        enemy.currentX = -100;
-        enemy.currentY = -100;
-        enemy.inPosition = false;
-        enemy.attacking = false;
-        
-        // Update score
-        const baseScore = enemy.type === this.enemyTypes.BOSS ? 300 :
-                         enemy.type === this.enemyTypes.ESCORT ? 200 : 100;
-        this.score += Math.floor(baseScore * this.currentDifficultySettings.scoreMultiplier);
-        document.getElementById('scoreValue').textContent = this.score;
-        
-        // Play sound effect
-        this.sounds.explosion.play();
-        
-        // Update wave statistics
-        this.waveStats.enemiesDefeated++;
     }
 
     // Add debug drawing method
@@ -1770,50 +1776,21 @@ class Game {
 
     startAttack(enemy) {
         enemy.attacking = true;
-        enemy.pattern = Math.random() < 0.5 ? 'LOOP' : 'DIVE';
+        enemy.pattern = 'DIVE';  // Simplify to just dive pattern
         enemy.patternProgress = 0;
         enemy.patternStartX = enemy.currentX;
         enemy.patternStartY = enemy.currentY;
+        enemy.targetX = this.player.x;
+        enemy.targetY = this.canvas.height + 50;
         
-        // Start formation attack if conditions are met
-        const nearbyEnemies = this.formations.filter(e => 
-            e !== enemy &&
-            !e.attacking &&
-            e.inPosition &&
-            Math.abs(e.currentX - enemy.currentX) < 100 &&
-            Math.abs(e.currentY - enemy.currentY) < 100
-        ).slice(0, 4); // Get up to 4 nearby enemies
-
-        if (nearbyEnemies.length >= 2) {
-            // Start formation attack
-            const formationType = Math.random() < 0.5 ? 'V_FORMATION' : 'CIRCLE_FORMATION';
-            const formation = {
-                leader: enemy,
-                members: [enemy, ...nearbyEnemies],
-                type: formationType,
-                progress: 0
-            };
-            
-            // Set up all members of the formation
-            formation.members.forEach((member, index) => {
-                member.attacking = true;
-                member.formationIndex = index;
-                member.currentFormation = formation;
-            });
-            
-            // Add attack indicator for the formation
-            this.attackIndicators.push({
-                startX: enemy.currentX + enemy.width / 2,
-                startY: enemy.currentY + enemy.height / 2,
-                endX: this.player.x + this.player.width / 2,
-                endY: this.canvas.height - 50,
-                alpha: 1
-            });
-        } else {
-            // Solo attack
-            enemy.patternTargetX = this.player.x;
-            enemy.patternTargetY = this.canvas.height + 50;
-        }
+        // Add attack indicator
+        this.attackIndicators.push({
+            startX: enemy.currentX + enemy.width / 2,
+            startY: enemy.currentY + enemy.height / 2,
+            endX: this.player.x + this.player.width / 2,
+            endY: this.canvas.height - 50,
+            alpha: 1
+        });
     }
 
     createDifficultyEffect() {
