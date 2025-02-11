@@ -137,35 +137,26 @@ class Game {
         // Add wave system
         this.wave = 1;
         this.waveConfig = {
-            1: {
-                totalEnemies: 15,  // Start with exactly 15 enemies
-                bossCount: 1,
-                escortCount: 2,
-                speedMultiplier: 1
-            },
-            2: {
-                totalEnemies: 18,  // Add 3 enemies each wave
-                bossCount: 1,
-                escortCount: 2,
-                speedMultiplier: 1.2
-            },
-            3: {
-                totalEnemies: 21,
-                bossCount: 2,
-                escortCount: 3,
-                speedMultiplier: 1.4
-            },
-            4: {
-                totalEnemies: 24,
-                bossCount: 2,
-                escortCount: 3,
-                speedMultiplier: 1.6
-            },
-            5: {
-                totalEnemies: 27,
-                bossCount: 3,
-                escortCount: 4,
-                speedMultiplier: 1.8
+            getConfig: function(wave) {
+                // Base configuration for wave 1
+                const baseConfig = {
+                    totalEnemies: 15,
+                    bossCount: 1,
+                    escortCount: 2,
+                    speedMultiplier: 1
+                };
+                
+                // For waves beyond 1, scale up the difficulty
+                if (wave > 1) {
+                    return {
+                        totalEnemies: baseConfig.totalEnemies + ((wave - 1) * 3), // Add 3 enemies per wave
+                        bossCount: Math.min(5, Math.floor(1 + (wave / 3))), // Increase boss count every 3 waves, max 5
+                        escortCount: Math.min(6, Math.floor(2 + (wave / 2))), // Increase escort count every 2 waves, max 6
+                        speedMultiplier: 1 + ((wave - 1) * 0.2) // Increase speed by 0.2 each wave
+                    };
+                }
+                
+                return baseConfig;
             }
         };
         
@@ -417,18 +408,24 @@ class Game {
     
     createFormations() {
         const formations = [];
-        const baseConfig = this.waveConfig[Math.min(this.wave, 5)];
+        const baseConfig = this.waveConfig.getConfig(this.wave);
         
         // Create classic Galaga formation patterns
         const patterns = {
             BUTTERFLY: (count) => {
                 const centerX = this.canvas.width/2;
-                const startY = 100;  // Moved down slightly
-                const margin = 40;   // Minimum distance from screen edges
+                const startY = 100;
+                const margin = 40;
+                
+                // Calculate how many enemies we can fit in each column
+                const enemiesPerColumn = Math.ceil(count / 3);
+                
+                // Ensure we don't exceed the count parameter
+                let remainingEnemies = count;
                 
                 // Create the two columns of the butterfly pattern
                 for (let side = -1; side <= 1; side += 2) {
-                    for (let i = 0; i < 4; i++) {
+                    for (let i = 0; i < enemiesPerColumn && remainingEnemies > 0; i++) {
                         const x = Math.min(Math.max(
                             centerX + (side * (40 + i * 20)),
                             margin
@@ -443,11 +440,12 @@ class Game {
                                 controlY: y/2
                             }
                         ));
+                        remainingEnemies--;
                     }
                 }
                 
                 // Center column
-                for (let i = 0; i < 3; i++) {
+                for (let i = 0; i < enemiesPerColumn && remainingEnemies > 0; i++) {
                     formations.push(this.createEnemy(centerX, startY + i * 30, 
                         i === 0 ? this.enemyTypes.BOSS : this.enemyTypes.ESCORT,
                         {
@@ -457,6 +455,7 @@ class Game {
                             controlY: (startY + i * 30)/2
                         }
                     ));
+                    remainingEnemies--;
                 }
             },
             V_SHAPE: (count) => {
@@ -464,7 +463,9 @@ class Game {
                 const startY = 80;
                 const margin = 40;
                 
-                for (let i = 0; i < count; i++) {
+                let remainingEnemies = count;
+                
+                for (let i = 0; i < count && remainingEnemies > 0; i++) {
                     const row = Math.floor(i / 2);
                     const isLeft = i % 2 === 0;
                     const x = Math.min(Math.max(
@@ -482,6 +483,7 @@ class Game {
                             controlY: y - 50
                         }
                     ));
+                    remainingEnemies--;
                 }
             },
             DIAMOND: (count) => {
@@ -490,7 +492,9 @@ class Game {
                 const spacing = 40;
                 const margin = 40;
                 
-                for (let i = 0; i < count; i++) {
+                let remainingEnemies = count;
+                
+                for (let i = 0; i < count && remainingEnemies > 0; i++) {
                     let x, y;
                     if (i === 0) {
                         x = centerX; y = startY - spacing;
@@ -506,7 +510,6 @@ class Game {
                         y = startY + Math.sin(angle) * spacing * 1.5;
                     }
                     
-                    // Keep enemies within screen bounds
                     x = Math.min(Math.max(x, margin), this.canvas.width - margin);
                     y = Math.min(Math.max(y, margin), this.canvas.height/2);
                     
@@ -519,12 +522,13 @@ class Game {
                             controlY: y - 50
                         }
                     ));
+                    remainingEnemies--;
                 }
             },
             BOSS_WAVE: () => {
                 const centerX = this.canvas.width/2;
                 const startY = 60;
-
+                
                 // Create the mega boss in the center
                 formations.push(this.createEnemy(centerX, startY, 
                     this.enemyTypes.BOSS,
@@ -534,9 +538,9 @@ class Game {
                         controlX: centerX,
                         controlY: startY/2
                     },
-                    true
+                    true  // isMegaBoss
                 ));
-
+                
                 // Create escort formation around the boss
                 const escortCount = 4;
                 for (let i = 0; i < escortCount; i++) {
@@ -555,7 +559,7 @@ class Game {
                         }
                     ));
                 }
-
+                
                 // Add grunt waves behind
                 const gruntRows = 2;
                 const gruntsPerRow = 3;
@@ -574,18 +578,18 @@ class Game {
                         ));
                     }
                 }
-
+                
                 // Mark all enemies in boss wave
                 formations.forEach(enemy => enemy.isBossWaveEnemy = true);
+                
+                // Update boss power scaling
+                this.bossConfig.updatePowerScale(this.wave);
             }
         };
 
         // Choose pattern based on wave number
         if (this.wave % 3 === 0) {
             patterns.BOSS_WAVE();
-            const bossNumber = Math.floor(this.wave / 3);
-            this.bossConfig.maxHealth = Math.floor(this.bossConfig.baseHealth * Math.pow(this.bossConfig.healthMultiplier, bossNumber - 1));
-            this.bossConfig.currentHealth = this.bossConfig.maxHealth;
         } else {
             const patternKeys = ['BUTTERFLY', 'V_SHAPE', 'DIAMOND'];
             const pattern = patterns[patternKeys[this.wave % patternKeys.length]];
@@ -1326,7 +1330,7 @@ class Game {
             
             // Draw wave details
             this.ctx.font = '12px "Press Start 2P"';
-            const config = this.waveConfig[Math.min(this.wave, 5)];
+            const config = this.waveConfig.getConfig(Math.min(this.wave, 5));
             this.ctx.fillText(`ENEMIES: ${config.totalEnemies}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
             this.ctx.fillText(`SPEED: ${config.speedMultiplier.toFixed(1)}x`, this.canvas.width / 2, this.canvas.height / 2 + 60);
             this.ctx.fillText(`BOSSES: ${config.bossCount}`, this.canvas.width / 2, this.canvas.height / 2 + 80);
@@ -1718,7 +1722,30 @@ class Game {
         enemy.health--;
         if (enemy.health <= 0) {
             if (enemy.isMegaBoss) {
-                // Boss death logic...
+                // Boss death logic
+                // Clear ALL enemies immediately
+                this.formations = this.formations.map(e => {
+                    e.currentX = -100;
+                    return e;
+                });
+                
+                // Create death animation
+                this.createDeathAnimation(
+                    enemy.currentX + enemy.width/2, 
+                    enemy.currentY + enemy.height/2,
+                    enemy.type
+                );
+                
+                // Award score and create power-up
+                const bossScore = 1000 * Math.floor(this.wave / 3);
+                this.score += bossScore;
+                document.getElementById('scoreValue').textContent = this.score;
+                this.createPowerUp(
+                    enemy.currentX + enemy.width/2,
+                    enemy.currentY + enemy.height/2
+                );
+                
+                this.sounds.explosion.play();
             } else {
                 // Regular enemy death
                 this.createDeathAnimation(
