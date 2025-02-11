@@ -9,23 +9,23 @@ body {
 
 .game-container {
     position: relative;
-    width: 400px;  /* Match canvas width */
-    height: 600px; /* Match canvas height */
+    width: 400px;
+    height: 600px;
 }
 
 canvas {
     border: 2px solid #fff;
-    display: block;  /* Remove any extra space */
+    display: block;
 }
 
 .score, .lives {
     position: absolute;
     top: 10px;
     font-family: 'Press Start 2P', cursive;
-    font-size: 8px;  /* Smaller font size */
+    font-size: 8px;
     color: #fff;
     text-transform: uppercase;
-    line-height: 1.5;  /* Add line height for better readability */
+    line-height: 1.5;
 }
 
 .score {
@@ -48,33 +48,50 @@ canvas {
     align-items: center;
     background: rgba(0, 0, 0, 0.8);
     color: #fff;
-    font-family: Arial, sans-serif;
-}
-
-.overlay h1 {
     font-family: 'Press Start 2P', cursive;
-    font-size: 24px;  /* Smaller title */
-    color: #f00;
-    text-shadow: 0 0 10px #f00;
-    margin-bottom: 30px;
-    text-transform: uppercase;
-}
-
-.overlay p {
-    font-family: 'Press Start 2P', cursive;
-    font-size: 12px;  /* Smaller text */
-    margin: 15px 0;
-    text-transform: uppercase;
-}
-
-.overlay .small {
-    font-family: 'Press Start 2P', cursive;
-    font-size: 8px;  /* Even smaller instructions */
-    color: #aaa;
 }
 
 .hidden {
     display: none;
+}
+
+.overlay h1 {
+    font-size: 36px;
+    color: #f00;
+    text-shadow: 0 0 10px #f00;
+    margin-bottom: 30px;
+}
+
+.overlay p {
+    margin: 15px 0;
+}
+
+.overlay .small {
+    font-size: 8px;
+    color: #aaa;
+}
+
+.difficulty-option {
+    padding: 5px;
+    color: #666;
+}
+
+.difficulty-option.selected {
+    color: #fff;
+    text-shadow: 0 0 10px #0ff;
+}
+
+.high-score {
+    color: #ff0;
+    text-shadow: 0 0 10px #ff0;
+}
+
+.high-score:empty {
+    display: none;
+}
+
+.fade-out {
+    opacity: 0;
 }
 
 .power-up {
@@ -104,12 +121,14 @@ canvas {
     padding: 8px;
     margin: 5px 0;
     color: #666;
-    transition: color 0.2s;
+    transition: all 0.2s;
+    cursor: pointer;
 }
 
-.difficulty-option.selected {
+.difficulty-option:hover {
     color: #fff;
     text-shadow: 0 0 10px #0ff;
+    transform: scale(1.1);
 }
 
 .high-scores {
@@ -129,15 +148,6 @@ canvas {
 .high-score-entry.selected {
     color: #fff;
     text-shadow: 0 0 10px #0ff;
-}
-
-.high-score {
-    color: #ff0;
-    text-shadow: 0 0 10px #ff0;
-}
-
-.high-score:empty {
-    display: none;
 }
 
 .leaderboard-tabs {
@@ -230,74 +240,6 @@ canvas {
     text-align: center;
 }
 
-.leaderboard-tabs {
-    margin: 20px 0;
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-}
-
-.tab-btn {
-    background: none;
-    border: 1px solid #666;
-    color: #666;
-    padding: 5px 10px;
-    font-family: 'Press Start 2P', cursive;
-    font-size: 8px;
-    cursor: pointer;
-}
-
-.tab-btn.selected {
-    color: #fff;
-    border-color: #fff;
-    text-shadow: 0 0 10px #0ff;
-}
-
-.leaderboard-entries {
-    margin: 20px 0;
-    font-family: 'Press Start 2P', cursive;
-    font-size: 10px;
-}
-
-.leaderboard-entry {
-    display: grid;
-    grid-template-columns: auto 1fr auto auto;
-    gap: 10px;
-    padding: 5px;
-    text-align: left;
-    color: #fff;
-    margin: 5px 0;
-}
-
-.leaderboard-entry.new {
-    animation: glow 1s infinite alternate;
-}
-
-.entry-rank {
-    color: #ff0;
-    width: 30px;
-}
-
-.entry-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.entry-score {
-    color: #0ff;
-}
-
-.entry-date {
-    color: #aaa;
-    font-size: 8px;
-}
-
-.modal-footer {
-    margin-top: 20px;
-    color: #666;
-}
-
 /* Add styles for name input */
 .name-input {
     background: #000;
@@ -316,4 +258,38 @@ canvas {
     outline: none;
     border-color: #0ff;
     box-shadow: 0 0 10px #0ff;
+}
+
+.logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    cursor: pointer;
+}
+
+.galaga-logo {
+    font-size: 48px;
+    color: #f00;
+    text-shadow: 0 0 20px #f00;
+    animation: pulse 2s infinite;
+}
+
+.click-prompt {
+    font-size: 12px;
+    color: #fff;
+    opacity: 0;
+    animation: blink 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); text-shadow: 0 0 20px #f00; }
+    50% { transform: scale(1.1); text-shadow: 0 0 30px #f00; }
+    100% { transform: scale(1); text-shadow: 0 0 20px #f00; }
+}
+
+@keyframes blink {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
 } 

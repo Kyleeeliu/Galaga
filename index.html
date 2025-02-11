@@ -12,29 +12,17 @@
         <canvas id="gameCanvas"></canvas>
         <div class="score">Score: <span id="scoreValue">0</span></div>
         <div class="lives">Lives: <span id="livesValue">3</span></div>
-        <div id="startScreen" class="overlay">
-            <h1>GALAGA</h1>
-            <div class="difficulty-select">
-                <p>SELECT DIFFICULTY:</p>
-                <div class="difficulty-options">
-                    <div class="difficulty-option selected" data-difficulty="easy">EASY</div>
-                    <div class="difficulty-option" data-difficulty="normal">NORMAL</div>
-                    <div class="difficulty-option" data-difficulty="hard">HARD</div>
-                </div>
-            </div>
-            <div class="high-scores">
-                <p>HIGH SCORES</p>
-                <div class="high-scores-list"></div>
-            </div>
-            <p>Press SPACE to Start</p>
-            <p class="small">Arrow keys or WASD to move, Space to shoot</p>
-            <p class="small">↑↓ to change difficulty</p>
-        </div>
         <div id="gameOverScreen" class="overlay hidden">
             <h1>GAME OVER</h1>
             <p>Score: <span class="final-score">0</span></p>
             <p class="high-score"></p>
             <p>Press SPACE to Return</p>
+        </div>
+        <div id="startScreen" class="overlay">
+            <div class="logo-container">
+                <h1 class="galaga-logo">GALAGA</h1>
+                <div class="click-prompt">CLICK TO START</div>
+            </div>
         </div>
     </div>
     <script src="game.js"></script>

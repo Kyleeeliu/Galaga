@@ -41,7 +41,7 @@ class Game {
         
         // Add lives and game state
         this.lives = 3;
-        this.gameState = 'start'; // Change initial state to 'start'
+        this.gameState = 'title';  // Change initial state to 'title'
         
         // Add power-ups
         this.powerUps = [];
@@ -121,15 +121,12 @@ class Game {
             }
         };
         
-        this.selectedDifficulty = 'normal';
-        this.currentDifficultySettings = this.difficulties[this.selectedDifficulty];
-        
         // Add attack pattern indicators
         this.attackIndicators = [];
         
         // Add difficulty indicator
         this.difficultyIndicator = {
-            text: this.selectedDifficulty.toUpperCase(),
+            text: 'NORMAL',
             alpha: 1,
             duration: 180  // 3 seconds at 60fps
         };
@@ -321,6 +318,12 @@ class Game {
             }
         };
         
+        // Add target indicators for escorts tracking player
+        this.targetIndicators = [];
+        
+        // Add explosion particles array
+        this.explosions = [];
+        
         this.init();
     }
     
@@ -340,6 +343,7 @@ class Game {
                     this.gameState = 'playing';
                     this.formations = this.createFormations();
                     document.getElementById('startScreen').classList.add('hidden');
+                    
                     // Unmute sounds on start
                     Object.values(this.sounds).forEach(sound => sound.muted = false);
                     Object.values(this.music).forEach(track => track.muted = false);
@@ -355,6 +359,7 @@ class Game {
                 this.debugMode = !this.debugMode;
             }
             
+            // Remove the keyboard difficulty selection
             if (this.gameState === 'start') {
                 // Difficulty selection
                 if (e.key === 'ArrowUp' || e.key === 'w') {
@@ -378,178 +383,153 @@ class Game {
         // Remove click listener since we're using spacebar now
         this.canvas.removeEventListener('click', () => {});
         
+        // Create initial formations immediately
+        this.formations = this.createFormations();
+        
         // Start game loop
         this.gameLoop();
-
-        // Start menu music
-        window.addEventListener('keydown', (e) => {
-            if (e.key === ' ' && this.gameState === 'start') {
-                // Unmute all audio
-                Object.values(this.sounds).forEach(sound => sound.muted = false);
-                Object.values(this.music).forEach(track => track.muted = false);
+        
+        // Start normal music immediately
+        this.music.normal.volume = 0.2;
+        this.music.normal.muted = false;
+        this.music.normal.play();
+        this.currentTrack = this.music.normal;
+        
+        // Add click handler for logo
+        const startScreen = document.getElementById('startScreen');
+        const logoContainer = startScreen.querySelector('.logo-container');
+        
+        logoContainer.addEventListener('click', () => {
+            if (this.gameState === 'title') {
+                startScreen.classList.add('hidden');
+                this.gameState = 'playing';
                 
-                // Fade from menu to normal theme
-                this.fadeMusic(this.music.menu, this.music.normal);
+                // Start game music
+                this.music.normal.volume = 0.2;
+                this.music.normal.muted = false;
+                this.music.normal.play();
+                this.currentTrack = this.music.normal;
                 
-                // ... rest of start game code ...
+                // Create initial formations
+                this.formations = this.createFormations();
             }
         });
-
-        // Start menu music immediately
-        this.music.menu.volume = 0.2;
-        this.music.menu.muted = false;
-        this.music.menu.play();
-        this.currentTrack = this.music.menu;
-    }
-    
-    changeDifficulty(direction) {
-        const difficulties = ['easy', 'normal', 'hard'];
-        let currentIndex = difficulties.indexOf(this.selectedDifficulty);
-        currentIndex = (currentIndex + direction + difficulties.length) % difficulties.length;
-        this.selectedDifficulty = difficulties[currentIndex];
-        this.currentDifficultySettings = this.difficulties[this.selectedDifficulty];
-        
-        // Update UI
-        document.querySelectorAll('.difficulty-option').forEach(option => {
-            option.classList.remove('selected');
-            if (option.dataset.difficulty === this.selectedDifficulty) {
-                option.classList.add('selected');
-            }
-        });
-        
-        // Reset difficulty indicator
-        this.difficultyIndicator = {
-            text: this.selectedDifficulty.toUpperCase(),
-            alpha: 1,
-            duration: 180
-        };
-        
-        // Add visual effect
-        this.createDifficultyEffect();
     }
     
     createFormations() {
         const formations = [];
-        const baseConfig = this.waveConfig.getConfig(this.wave);
+        const baseConfig = this.waveConfig.getConfig(Math.min(this.wave, 5));
+        const maxY = this.canvas.height * 0.4;
         
-        // Create classic Galaga formation patterns
         const patterns = {
-            BUTTERFLY: (count) => {
+            ARROW: (count) => {
                 const centerX = this.canvas.width/2;
-                const startY = 100;
-                const margin = 40;
+                const startY = Math.min(80, maxY);
+                const spacing = 35;
                 
-                // Calculate how many enemies we can fit in each column
-                const enemiesPerColumn = Math.ceil(count / 3);
-                
-                // Ensure we don't exceed the count parameter
-                let remainingEnemies = count;
-                
-                // Create the two columns of the butterfly pattern
-                for (let side = -1; side <= 1; side += 2) {
-                    for (let i = 0; i < enemiesPerColumn && remainingEnemies > 0; i++) {
-                        const x = Math.min(Math.max(
-                            centerX + (side * (40 + i * 20)),
-                            margin
-                        ), this.canvas.width - margin);
-                        const y = startY + i * 25;
-                        formations.push(this.createEnemy(x, y, 
-                            i === 0 ? this.enemyTypes.ESCORT : this.enemyTypes.GRUNT,
+                // Create arrow shape pointing down
+                for (let row = 0; row < 4; row++) {
+                    const width = (row + 1) * 2 - 1;
+                    for (let col = 0; col < width; col++) {
+                        const x = centerX + (col - width/2 + 0.5) * spacing;
+                        const y = startY + row * spacing;
+                        formations.push(this.createEnemy(x, y,
+                            row === 0 ? this.enemyTypes.BOSS :
+                            row === 1 ? this.enemyTypes.ESCORT :
+                            this.enemyTypes.GRUNT,
                             {
-                                startX: centerX + (side * 200),
+                                startX: x < centerX ? -50 : this.canvas.width + 50,
                                 startY: -50,
                                 controlX: x,
-                                controlY: y/2
+                                controlY: y - 30
                             }
                         ));
-                        remainingEnemies--;
                     }
                 }
+            },
+            
+            SPIRAL: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = Math.min(80, maxY);
+                const spacing = 30;
+                const spiralCount = 12;
                 
-                // Center column
-                for (let i = 0; i < enemiesPerColumn && remainingEnemies > 0; i++) {
-                    formations.push(this.createEnemy(centerX, startY + i * 30, 
-                        i === 0 ? this.enemyTypes.BOSS : this.enemyTypes.ESCORT,
+                for (let i = 0; i < spiralCount; i++) {
+                    const angle = (i / spiralCount) * Math.PI * 4;
+                    const radius = (i / spiralCount) * 100;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = startY + Math.sin(angle) * radius;
+                    
+                    formations.push(this.createEnemy(x, y,
+                        i === 0 ? this.enemyTypes.BOSS :
+                        i < 5 ? this.enemyTypes.ESCORT : // Increased from 3 to 5 escorts
+                        this.enemyTypes.GRUNT,
                         {
                             startX: centerX,
-                            startY: -100 - (i * 30),
-                            controlX: centerX,
-                            controlY: (startY + i * 30)/2
-                        }
-                    ));
-                    remainingEnemies--;
-                }
-            },
-            V_SHAPE: (count) => {
-                const centerX = this.canvas.width/2;
-                const startY = 80;
-                const margin = 40;
-                
-                let remainingEnemies = count;
-                
-                for (let i = 0; i < count && remainingEnemies > 0; i++) {
-                    const row = Math.floor(i / 2);
-                    const isLeft = i % 2 === 0;
-                    const x = Math.min(Math.max(
-                        centerX + (isLeft ? -1 : 1) * (40 + row * 30),
-                        margin
-                    ), this.canvas.width - margin);
-                    const y = startY + row * 25;
-                    
-                    formations.push(this.createEnemy(x, y,
-                        i < 2 ? this.enemyTypes.ESCORT : this.enemyTypes.GRUNT,
-                        {
-                            startX: isLeft ? -50 : this.canvas.width + 50,
                             startY: -50,
                             controlX: x,
-                            controlY: y - 50
+                            controlY: y - 30
                         }
                     ));
-                    remainingEnemies--;
                 }
             },
-            DIAMOND: (count) => {
+            
+            FORTRESS: (count) => {
                 const centerX = this.canvas.width/2;
-                const startY = 100;
+                const startY = Math.min(60, maxY);
                 const spacing = 40;
-                const margin = 40;
                 
-                let remainingEnemies = count;
-                
-                for (let i = 0; i < count && remainingEnemies > 0; i++) {
-                    let x, y;
-                    if (i === 0) {
-                        x = centerX; y = startY - spacing;
-                    } else if (i === 1) {
-                        x = centerX + spacing; y = startY;
-                    } else if (i === 2) {
-                        x = centerX; y = startY + spacing;
-                    } else if (i === 3) {
-                        x = centerX - spacing; y = startY;
-                    } else {
-                        const angle = ((i - 4) / (count - 4)) * Math.PI * 2;
-                        x = centerX + Math.cos(angle) * spacing * 1.5;
-                        y = startY + Math.sin(angle) * spacing * 1.5;
-                    }
-                    
-                    x = Math.min(Math.max(x, margin), this.canvas.width - margin);
-                    y = Math.min(Math.max(y, margin), this.canvas.height/2);
-                    
-                    formations.push(this.createEnemy(x, y,
-                        i < 4 ? this.enemyTypes.ESCORT : this.enemyTypes.GRUNT,
-                        {
-                            startX: Math.random() < 0.5 ? -50 : this.canvas.width + 50,
-                            startY: -100,
-                            controlX: x,
-                            controlY: y - 50
+                // Create outer wall
+                for (let i = -2; i <= 2; i++) {
+                    for (let j = -2; j <= 2; j++) {
+                        if (Math.abs(i) === 2 || Math.abs(j) === 2) {
+                            const x = centerX + i * spacing;
+                            const y = startY + j * spacing;
+                            formations.push(this.createEnemy(x, y,
+                                this.enemyTypes.GRUNT,
+                                {
+                                    startX: x < centerX ? -50 : this.canvas.width + 50,
+                                    startY: -50,
+                                    controlX: x,
+                                    controlY: y - 30
+                                }
+                            ));
                         }
-                    ));
-                    remainingEnemies--;
+                    }
                 }
-            },
+                
+                // Create escorts at corners
+                for (let i = -1; i <= 1; i += 2) {
+                    for (let j = -1; j <= 1; j += 2) {
+                        const x = centerX + i * spacing;
+                        const y = startY + j * spacing;
+                        formations.push(this.createEnemy(x, y,
+                            this.enemyTypes.ESCORT,
+                            {
+                                startX: x < centerX ? -50 : this.canvas.width + 50,
+                                startY: -50,
+                                controlX: x,
+                                controlY: y - 30
+                            }
+                        ));
+                    }
+                }
+                
+                // Boss in center
+                formations.push(this.createEnemy(centerX, startY,
+                    this.enemyTypes.BOSS,
+                    {
+                        startX: centerX,
+                        startY: -50,
+                        controlX: centerX,
+                        controlY: startY - 30
+                    }
+                ));
+            },  // <-- Added missing comma here
+            
             BOSS_WAVE: () => {
                 const centerX = this.canvas.width/2;
-                const startY = 60;
+                const startY = Math.min(60, maxY);
                 
                 // Create the mega boss in the center
                 formations.push(this.createEnemy(centerX, startY, 
@@ -581,128 +561,9 @@ class Game {
                         }
                     ));
                 }
-                
-                // Add grunt waves behind
-                const gruntRows = 2;
-                const gruntsPerRow = 3;
-                for (let row = 0; row < gruntRows; row++) {
-                    for (let col = 0; col < gruntsPerRow; col++) {
-                        const x = centerX + (col - gruntsPerRow/2 + 0.5) * 50;
-                        const y = startY + 80 + row * 40;
-                        formations.push(this.createEnemy(x, y,
-                            this.enemyTypes.GRUNT,
-                            {
-                                startX: x,
-                                startY: -150 - row * 30,
-                                controlX: x,
-                                controlY: y/2
-                            }
-                        ));
-                    }
-                }
-                
-                // Mark all enemies in boss wave
-                formations.forEach(enemy => enemy.isBossWaveEnemy = true);
-                
+
                 // Update boss power scaling
-                this.bossConfig.updatePowerScale(this.wave, this.selectedDifficulty);
-            },
-            DIAMOND_WALL: (count) => {
-                const centerX = this.canvas.width/2;
-                const startY = 80;
-                const spacing = 40;
-                
-                for (let row = 0; row < 3; row++) {
-                    for (let col = 0; col < 3; col++) {
-                        const x = centerX + (col - 1) * spacing;
-                        const y = startY + row * spacing;
-                        
-                        formations.push(this.createEnemy(x, y,
-                            row === 1 && col === 1 ? this.enemyTypes.BOSS :
-                            row === 1 || col === 1 ? this.enemyTypes.ESCORT :
-                            this.enemyTypes.GRUNT,
-                            {
-                                startX: x < centerX ? -50 : this.canvas.width + 50,
-                                startY: -50,
-                                controlX: x,
-                                controlY: y - 30
-                            }
-                        ));
-                    }
-                }
-            },
-            CROSS: (count) => {
-                const centerX = this.canvas.width/2;
-                const startY = 100;
-                const spacing = 35;
-                
-                // Vertical line
-                for (let i = -2; i <= 2; i++) {
-                    formations.push(this.createEnemy(centerX, startY + i * spacing,
-                        i === 0 ? this.enemyTypes.BOSS :
-                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
-                        this.enemyTypes.GRUNT,
-                        {
-                            startX: centerX,
-                            startY: -100 - Math.abs(i) * 30,
-                            controlX: centerX,
-                            controlY: (startY + i * spacing)/2
-                        }
-                    ));
-                }
-                
-                // Horizontal line
-                for (let i = -2; i <= 2; i++) {
-                    if (i === 0) continue; // Skip center (already placed)
-                    formations.push(this.createEnemy(centerX + i * spacing, startY,
-                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
-                        this.enemyTypes.GRUNT,
-                        {
-                            startX: i < 0 ? -50 : this.canvas.width + 50,
-                            startY: -50,
-                            controlX: centerX + i * spacing,
-                            controlY: startY - 30
-                        }
-                    ));
-                }
-            },
-            DOUBLE_V: (count) => {
-                const centerX = this.canvas.width/2;
-                const startY = 80;
-                const spacing = 35;
-                
-                // Front V
-                for (let i = -2; i <= 2; i++) {
-                    formations.push(this.createEnemy(
-                        centerX + i * spacing,
-                        startY + Math.abs(i) * spacing,
-                        i === 0 ? this.enemyTypes.BOSS :
-                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
-                        this.enemyTypes.GRUNT,
-                        {
-                            startX: i < 0 ? -50 : this.canvas.width + 50,
-                            startY: -50,
-                            controlX: centerX + i * spacing,
-                            controlY: startY - 30
-                        }
-                    ));
-                }
-                
-                // Back V (inverted)
-                for (let i = -2; i <= 2; i++) {
-                    formations.push(this.createEnemy(
-                        centerX + i * spacing,
-                        startY - Math.abs(i) * spacing + 100,
-                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
-                        this.enemyTypes.GRUNT,
-                        {
-                            startX: i < 0 ? -50 : this.canvas.width + 50,
-                            startY: -100,
-                            controlX: centerX + i * spacing,
-                            controlY: startY + 30
-                        }
-                    ));
-                }
+                this.bossConfig.updatePowerScale(this.wave, 'normal');
             }
         };
 
@@ -710,7 +571,7 @@ class Game {
         if (this.wave % 3 === 0) {
             patterns.BOSS_WAVE();
         } else {
-            const patternKeys = ['BUTTERFLY', 'V_SHAPE', 'DIAMOND', 'DIAMOND_WALL', 'CROSS', 'DOUBLE_V'];
+            const patternKeys = ['ARROW', 'SPIRAL', 'FORTRESS'];
             const pattern = patterns[patternKeys[this.wave % patternKeys.length]];
             pattern(baseConfig.totalEnemies);
         }
@@ -719,19 +580,24 @@ class Game {
     }
 
     createEnemy(targetX, targetY, type, path, isMegaBoss = false) {
-        // Calculate power scaling based on wave number
-        const powerScale = 1 + (this.wave * 0.1); // 10% stronger each wave
+        // Add margin to keep enemies on screen
+        const margin = 30;
+        const boundedX = Math.min(Math.max(targetX, margin), this.canvas.width - margin);
+        const boundedY = Math.min(Math.max(targetY, margin), this.canvas.height * 0.4);
+
+        // Add back the scaling factors
+        const powerScale = 1 + (this.wave * 0.1);  // 10% stronger each wave
         const speedScale = 1 + (this.wave * 0.05); // 5% faster each wave
         const healthScale = 1 + (Math.floor(this.wave / 3) * 0.2); // 20% more health every 3 waves
 
         return {
-            currentX: path ? path.startX : targetX,
+            currentX: path ? path.startX : boundedX,
             currentY: path ? path.startY : -50,
-            targetX: targetX,
-            targetY: targetY,
+            targetX: boundedX,  // Use bounded position
+            targetY: boundedY,  // Use bounded position
             width: isMegaBoss ? 90 : 30,
             height: isMegaBoss ? 90 : 30,
-            speed: this.currentDifficultySettings.enemySpeed * speedScale,
+            speed: this.difficulties['normal'].enemySpeed * speedScale,
             inPosition: false,
             attacking: false,
             type: type,
@@ -741,10 +607,9 @@ class Game {
             path: path,
             pathProgress: 0,
             isMegaBoss: isMegaBoss,
-            shootInterval: Math.max(20, isMegaBoss ? 60 : 45 - this.wave * 2), // Shoot faster as waves progress
+            shootInterval: Math.max(20, isMegaBoss ? 60 : 45 - this.wave * 2),
             shootCooldown: Math.floor(Math.random() * 120) + 60,
             canShoot: false,
-            // Add health for regular enemies too
             health: isMegaBoss ? 
                 this.bossConfig.maxHealth : 
                 Math.ceil(type === this.enemyTypes.ESCORT ? 2 * healthScale : 1 * healthScale)
@@ -776,6 +641,9 @@ class Game {
     }
     
     update() {
+        // Only update game if not in title screen
+        if (this.gameState === 'title') return;
+        
         if (this.gameState !== 'playing') return;
         
         // Update attacking enemies with simpler movement
@@ -882,7 +750,7 @@ class Game {
         // Update enemy attacks with limits
         if (this.formations.length > 0) {
             this.attackTimer++;
-            if (this.attackTimer >= this.currentDifficultySettings.attackCooldown && 
+            if (this.attackTimer >= this.difficulties['normal'].attackCooldown && 
                 this.enemyAttackConfig.currentAttacks < this.enemyAttackConfig.maxAttacksPerWave) {
                 
                 const availableEnemies = this.formations.filter(enemy => 
@@ -891,7 +759,7 @@ class Game {
                 
                 if (availableEnemies.length > 0) {
                     const attackingCount = this.formations.filter(e => e.attacking).length;
-                    if (attackingCount < this.currentDifficultySettings.maxAttackers) {
+                    if (attackingCount < this.difficulties['normal'].maxAttackers) {
                         const enemy = availableEnemies[Math.floor(Math.random() * availableEnemies.length)];
                         this.startAttack(enemy);
                         this.enemyAttackConfig.currentAttacks++;
@@ -939,12 +807,18 @@ class Game {
         this.formations.forEach(enemy => {
             if (enemy.currentX > -50 && !this.player.invulnerable) {
                 if (this.checkCollision(enemy, this.player)) {
-                    this.playerHit();
-                    // Move enemy off screen after collision
-                    enemy.currentX = -100;
-                    enemy.currentY = -100;
-                    enemy.attacking = false;
-                    enemy.inPosition = false;
+                    // Only take damage from charging enemies or boss
+                    if (enemy.attacking || enemy.isMegaBoss) {
+                        this.playerHit();
+                        
+                        // Move charging enemy off screen after collision
+                        if (enemy.attacking) {
+                            enemy.currentX = -100;
+                            enemy.currentY = -100;
+                            enemy.attacking = false;
+                            enemy.inPosition = false;
+                        }
+                    }
                 }
             }
         });
@@ -1169,6 +1043,39 @@ class Game {
                 }
             }
         });
+
+        // Update target indicators
+        this.targetIndicators = this.targetIndicators.filter(indicator => {
+            const enemy = indicator.enemy;
+            
+            // Remove if enemy is gone or past player
+            if (enemy.currentX <= -50 || enemy.currentY > this.canvas.height) {
+                return false;
+            }
+            
+            // Update visual effects
+            indicator.alpha = Math.min(indicator.alpha + 0.05, 1);
+            indicator.scale = 1 + Math.sin(Date.now() / 200) * 0.2;
+            indicator.rotation += 0.05;
+            
+            // Update target position while enemy is diving
+            if (enemy.attacking) {
+                enemy.targetX = this.player.x;
+            }
+            
+            return true;
+        });
+
+        // Update explosions
+        this.explosions = this.explosions.filter(particle => {
+            particle.x += particle.dx;
+            particle.y += particle.dy;
+            particle.dx *= 0.95;  // Slow down over time
+            particle.dy *= 0.95;
+            particle.alpha -= particle.decay;
+            particle.rotation += 0.1;
+            return particle.alpha > 0;
+        });
     }
     
     checkCollision(rect1, rect2) {
@@ -1187,6 +1094,12 @@ class Game {
     }
     
     draw() {
+        // Always draw stars even on title screen
+        this.drawStars();
+        
+        // Only draw game elements if not in title screen
+        if (this.gameState === 'title') return;
+        
         // Clear canvas
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -1375,7 +1288,7 @@ class Game {
             this.ctx.fillText(this.difficultyIndicator.text, this.canvas.width / 2, 50);
             
             // Draw difficulty-specific details
-            const settings = this.currentDifficultySettings;
+            const settings = this.difficulties['normal'];
             this.ctx.font = '8px "Press Start 2P"';
             this.ctx.fillText(`SPEED: ${settings.enemySpeed}x`, this.canvas.width / 2, 70);
             this.ctx.fillText(`SCORE: ${settings.scoreMultiplier}x`, this.canvas.width / 2, 85);
@@ -1460,23 +1373,28 @@ class Game {
             
             this.ctx.fillText('DEBUG MODE (H)', rightEdge, bottomStart);
             
+            // Add current formation pattern
+            const currentPattern = this.wave % 3 === 0 ? 'BOSS WAVE' : 
+                ['ARROW', 'SPIRAL', 'FORTRESS'][this.wave % 3];
+            this.ctx.fillText(`PATTERN: ${currentPattern}`, rightEdge, bottomStart + lineHeight);
+            
             // Add enemies left counter
             const enemiesLeft = this.formations.filter(enemy => 
                 enemy.currentX > -50 && enemy.currentY < this.canvas.height
             ).length;
-            this.ctx.fillText(`ENEMIES: ${enemiesLeft}`, rightEdge, bottomStart + lineHeight);
+            this.ctx.fillText(`ENEMIES: ${enemiesLeft}`, rightEdge, bottomStart + lineHeight * 2);
             
             this.ctx.fillText(`ENTITIES: ${this.formations.length + this.bullets.length + this.powerUps.length}`, 
-                rightEdge, bottomStart + lineHeight * 2);
+                rightEdge, bottomStart + lineHeight * 3);
             
             // Add enemy type breakdown
             const bosses = this.formations.filter(e => e.type === this.enemyTypes.BOSS && e.currentX > -50).length;
             const escorts = this.formations.filter(e => e.type === this.enemyTypes.ESCORT && e.currentX > -50).length;
             const grunts = this.formations.filter(e => e.type === this.enemyTypes.GRUNT && e.currentX > -50).length;
-            this.ctx.fillText(`B:${bosses} E:${escorts} G:${grunts}`, rightEdge, bottomStart + lineHeight * 3);
+            this.ctx.fillText(`B:${bosses} E:${escorts} G:${grunts}`, rightEdge, bottomStart + lineHeight * 4);
             
             this.ctx.fillText(`POS: ${Math.round(this.player.x)},${Math.round(this.player.y)}`, 
-                rightEdge, bottomStart + lineHeight * 4);
+                rightEdge, bottomStart + lineHeight * 5);
         }
 
         // Draw wave transition
@@ -1608,6 +1526,48 @@ class Game {
             this.ctx.strokeStyle = '#fff';
             this.ctx.strokeRect(barX, barY, barWidth, barHeight);
         }
+
+        // Draw target indicators
+        this.targetIndicators.forEach(indicator => {
+            this.ctx.save();
+            this.ctx.translate(this.player.x + this.player.width/2, this.player.y + this.player.height/2);
+            this.ctx.rotate(indicator.rotation);
+            this.ctx.scale(indicator.scale, indicator.scale);
+            
+            // Draw bullseye
+            this.ctx.strokeStyle = `rgba(255, 0, 0, ${indicator.alpha})`;
+            this.ctx.lineWidth = 2;
+            
+            // Outer circle
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, 20, 0, Math.PI * 2);
+            this.ctx.stroke();
+            
+            // Inner circle
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            this.ctx.stroke();
+            
+            // Crosshairs
+            this.ctx.beginPath();
+            this.ctx.moveTo(-25, 0);
+            this.ctx.lineTo(25, 0);
+            this.ctx.moveTo(0, -25);
+            this.ctx.lineTo(0, 25);
+            this.ctx.stroke();
+            
+            this.ctx.restore();
+        });
+
+        // Draw explosions
+        this.explosions.forEach(particle => {
+            this.ctx.save();
+            this.ctx.translate(particle.x, particle.y);
+            this.ctx.rotate(particle.rotation);
+            this.ctx.fillStyle = `rgba(${particle.color}, ${particle.alpha})`;
+            this.ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size);
+            this.ctx.restore();
+        });
     }
     
     drawPlayer() {
@@ -1815,6 +1775,13 @@ class Game {
     playerHit() {
         if (this.playerPowerUps.shield) return;
         
+        // Create explosion at player position
+        this.createExplosion(
+            this.player.x + this.player.width/2,
+            this.player.y + this.player.height/2,
+            this.enemyTypes.ESCORT
+        );
+        
         this.lives--;
         document.getElementById('livesValue').textContent = this.lives;
         this.sounds.playerHit.play();
@@ -1839,9 +1806,9 @@ class Game {
         document.querySelector('.final-score').textContent = this.score;
 
         // Check and display high score
-        const isNewHighScore = this.saveHighScore(this.selectedDifficulty, this.score);
+        const isNewHighScore = this.saveHighScore('normal', this.score);
         document.querySelector('.high-score').textContent = 
-            `HIGH SCORE: ${this.highScores[this.selectedDifficulty]}` +
+            `HIGH SCORE: ${this.highScores['normal']}` +
             (isNewHighScore ? ' NEW!' : '');
 
         // Fade to game over music
@@ -1849,19 +1816,17 @@ class Game {
     }
 
     restart() {
-        // Fade back to menu music
-        this.fadeMusic(this.currentTrack, this.music.menu);
+        this.fadeMusic(this.currentTrack, this.music.normal);
+        this.gameState = 'playing';  // Change from 'start' to 'playing'
         
-        // Return to difficulty selection instead of immediately restarting
-        this.gameState = 'start';
+        // Show/hide screens
         document.getElementById('gameOverScreen').classList.add('hidden');
-        document.getElementById('startScreen').classList.remove('hidden');
         
         // Reset game state
         this.lives = 3;
         this.score = 0;
         this.wave = 1;
-        this.formations = [];
+        this.formations = this.createFormations();
         this.powerUps = [];
         this.bullets = [];
         this.deathAnimations = [];
@@ -1874,7 +1839,7 @@ class Game {
         // Reset UI
         document.getElementById('scoreValue').textContent = '0';
         document.getElementById('livesValue').textContent = '3';
-        this.enemyBullets = [];  // Clear enemy bullets
+        this.enemyBullets = [];
     }
 
     handleEnemyDestruction(enemy, bulletIndex) {
@@ -1919,6 +1884,13 @@ class Game {
         // Regular enemy damage
         enemy.health--;
         if (enemy.health <= 0) {
+            // Create explosion effect
+            this.createExplosion(
+                enemy.currentX + enemy.width/2,
+                enemy.currentY + enemy.height/2,
+                enemy.type
+            );
+            
             // Create death animation
             this.createDeathAnimation(
                 enemy.currentX + enemy.width/2, 
@@ -1936,7 +1908,7 @@ class Game {
             const baseScore = enemy.type === this.enemyTypes.BOSS ? 300 :
                              enemy.type === this.enemyTypes.ESCORT ? 200 : 100;
             const scoreMultiplier = 1 + (this.wave * 0.1);
-            this.score += Math.floor(baseScore * this.currentDifficultySettings.scoreMultiplier * scoreMultiplier);
+            this.score += Math.floor(baseScore * this.difficulties['normal'].scoreMultiplier * scoreMultiplier);
             document.getElementById('scoreValue').textContent = this.score;
             
             this.sounds.explosion.play();
@@ -1977,14 +1949,14 @@ class Game {
         // Only allow escort enemies to attack
         if (enemy.type !== this.enemyTypes.ESCORT) return;
         
-        // Limit number of attackers based on wave
+        // Increase max attackers and base them on wave
         const currentAttackers = this.formations.filter(e => e.attacking).length;
-        const maxAttackers = Math.min(2, Math.floor(1 + this.wave/4)); // Max 2 attackers, increases every 4 waves
+        const maxAttackers = Math.min(5, Math.floor(2 + this.wave/2)); // More attackers, up to 5 at once
         
         if (currentAttackers >= maxAttackers) return;
         
-        // Attack chance increases with wave number
-        const attackChance = 0.2 + (this.wave * 0.03); // Starts at 20%, increases by 3% per wave
+        // Much higher attack chance
+        const attackChance = 0.5 + (this.wave * 0.1); // Starts at 50%, increases by 10% per wave
         if (Math.random() > attackChance) return;
         
         enemy.attacking = true;
@@ -1994,6 +1966,8 @@ class Game {
         enemy.patternStartY = enemy.currentY;
         enemy.targetX = this.player.x;
         enemy.targetY = this.canvas.height + 50;
+        enemy.tracking = true;
+        enemy.canShoot = true;
         
         // Add attack indicator
         this.attackIndicators.push({
@@ -2003,43 +1977,14 @@ class Game {
             endY: this.canvas.height - 50,
             alpha: 1
         });
-    }
-
-    createDifficultyEffect() {
-        const colors = {
-            easy: '#00ff00',
-            normal: '#ffff00',
-            hard: '#ff0000'
-        };
         
-        // Create expanding ring effect
-        const ring = {
-            x: this.canvas.width / 2,
-            y: this.canvas.height / 2,
-            radius: 0,
-            maxRadius: this.canvas.width,
-            color: colors[this.selectedDifficulty],
-            alpha: 0.5
-        };
-        
-        const animate = () => {
-            this.ctx.save();
-            this.ctx.strokeStyle = `rgba(${ring.color}, ${ring.alpha})`;
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            this.ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
-            this.ctx.stroke();
-            this.ctx.restore();
-            
-            ring.radius += 10;
-            ring.alpha -= 0.01;
-            
-            if (ring.radius < ring.maxRadius && ring.alpha > 0) {
-                requestAnimationFrame(animate);
-            }
-        };
-        
-        animate();
+        // Add target indicator
+        this.targetIndicators.push({
+            enemy: enemy,
+            alpha: 0,
+            scale: 2,
+            rotation: 0
+        });
     }
 
     startNextWave() {
@@ -2295,6 +2240,58 @@ class Game {
             dx: Math.cos(angle) * speed,
             dy: Math.sin(angle) * speed,
             color: enemy.isMegaBoss ? '#f00' : '#ff0'
+        });
+    }
+
+    createExplosion(x, y, type) {
+        const colors = type === this.enemyTypes.BOSS ? ['255,200,0', '255,100,0', '255,50,0'] :  // Yellow-orange fire
+                      type === this.enemyTypes.ESCORT ? ['0,255,255', '100,150,255', '255,255,255'] :  // Blue-white energy
+                      ['255,100,100', '255,255,255', '255,0,0'];  // Red-white burst
+        
+        // Create two layers of particles for more density
+        // Inner explosion (dense, fast particles)
+        for (let i = 0; i < 40; i++) {
+            const angle = (Math.random() * Math.PI * 2);
+            const speed = 3 + Math.random() * 3;  // Faster inner particles
+            const distance = Math.random() * 10;  // Tighter inner radius
+            
+            this.explosions.push({
+                x: x,
+                y: y,
+                dx: Math.cos(angle) * speed,
+                dy: Math.sin(angle) * speed,
+                size: 1 + Math.random() * 1.5,  // Smaller inner particles
+                color: colors[Math.floor(Math.random() * colors.length)],
+                alpha: 1,
+                rotation: Math.random() * Math.PI * 2,
+                decay: 0.04 + Math.random() * 0.02  // Faster decay for inner particles
+            });
+        }
+        
+        // Outer explosion (scattered, slower particles)
+        for (let i = 0; i < 20; i++) {
+            const angle = (Math.random() * Math.PI * 2);
+            const speed = 1 + Math.random() * 2;  // Slower outer particles
+            const distance = 10 + Math.random() * 20;  // Wider outer radius
+            
+            this.explosions.push({
+                x: x,
+                y: y,
+                dx: Math.cos(angle) * speed,
+                dy: Math.sin(angle) * speed,
+                size: 1.5 + Math.random() * 2,  // Larger outer particles
+                color: colors[Math.floor(Math.random() * colors.length)],
+                alpha: 0.8,  // Start slightly transparent
+                rotation: Math.random() * Math.PI * 2,
+                decay: 0.02 + Math.random() * 0.01  // Slower decay for outer particles
+            });
+        }
+    }
+
+    drawStars() {
+        this.ctx.fillStyle = '#fff';
+        this.stars.forEach(star => {
+            this.ctx.fillRect(star.x, star.y, star.size, star.size);
         });
     }
 }
