@@ -142,7 +142,7 @@ class Game {
                 const baseConfig = {
                     totalEnemies: 15,
                     bossCount: 1,
-                    escortCount: 2,
+                    escortCount: 4,  // Increased from 2 to 4
                     speedMultiplier: 1
                 };
                 
@@ -151,7 +151,7 @@ class Game {
                     return {
                         totalEnemies: baseConfig.totalEnemies + ((wave - 1) * 3), // Add 3 enemies per wave
                         bossCount: Math.min(5, Math.floor(1 + (wave / 3))), // Increase boss count every 3 waves, max 5
-                        escortCount: Math.min(6, Math.floor(2 + (wave / 2))), // Increase escort count every 2 waves, max 6
+                        escortCount: Math.min(8, Math.floor(4 + (wave / 2))), // Start at 4, increase every 2 waves, max 8
                         speedMultiplier: 1 + ((wave - 1) * 0.2) // Increase speed by 0.2 each wave
                     };
                 }
@@ -261,15 +261,37 @@ class Game {
         
         // Add boss health configuration
         this.bossConfig = {
-            baseHealth: 15,         // Reduced from 20
-            healthMultiplier: 1.3,  // Reduced from 1.5
+            baseHealth: {
+                easy: 10,    // Less health on easy
+                normal: 15,  // Current base health
+                hard: 20     // More health on hard
+            },
+            healthMultiplier: {
+                easy: 1.2,   // Slower health scaling
+                normal: 1.3, // Current multiplier
+                hard: 1.5    // Faster health scaling
+            },
+            shootInterval: {
+                easy: 90,    // Shoots slower
+                normal: 60,  // Current interval
+                hard: 45     // Shoots faster
+            },
             currentHealth: 0,
             maxHealth: 0,
-            powerScale: 1, // Base power scale
-            updatePowerScale: function(wave) {
-                // Increase boss power every 3 waves
-                this.powerScale = 1 + (Math.floor(wave / 3) * 0.3); // 30% stronger each boss wave
-                this.maxHealth = Math.ceil(this.baseHealth * Math.pow(this.healthMultiplier, Math.floor(wave / 3)));
+            powerScale: 1,
+            updatePowerScale: function(wave, difficulty) {
+                // Scale boss power based on difficulty
+                const baseScale = {
+                    easy: 0.2,    // 20% increase per boss wave
+                    normal: 0.3,  // 30% increase per boss wave
+                    hard: 0.4     // 40% increase per boss wave
+                }[difficulty];
+                
+                this.powerScale = 1 + (Math.floor(wave / 3) * baseScale);
+                this.maxHealth = Math.ceil(
+                    this.baseHealth[difficulty] * 
+                    Math.pow(this.healthMultiplier[difficulty], Math.floor(wave / 3))
+                );
                 this.currentHealth = this.maxHealth;
             }
         };
@@ -583,7 +605,104 @@ class Game {
                 formations.forEach(enemy => enemy.isBossWaveEnemy = true);
                 
                 // Update boss power scaling
-                this.bossConfig.updatePowerScale(this.wave);
+                this.bossConfig.updatePowerScale(this.wave, this.selectedDifficulty);
+            },
+            DIAMOND_WALL: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = 80;
+                const spacing = 40;
+                
+                for (let row = 0; row < 3; row++) {
+                    for (let col = 0; col < 3; col++) {
+                        const x = centerX + (col - 1) * spacing;
+                        const y = startY + row * spacing;
+                        
+                        formations.push(this.createEnemy(x, y,
+                            row === 1 && col === 1 ? this.enemyTypes.BOSS :
+                            row === 1 || col === 1 ? this.enemyTypes.ESCORT :
+                            this.enemyTypes.GRUNT,
+                            {
+                                startX: x < centerX ? -50 : this.canvas.width + 50,
+                                startY: -50,
+                                controlX: x,
+                                controlY: y - 30
+                            }
+                        ));
+                    }
+                }
+            },
+            CROSS: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = 100;
+                const spacing = 35;
+                
+                // Vertical line
+                for (let i = -2; i <= 2; i++) {
+                    formations.push(this.createEnemy(centerX, startY + i * spacing,
+                        i === 0 ? this.enemyTypes.BOSS :
+                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
+                        this.enemyTypes.GRUNT,
+                        {
+                            startX: centerX,
+                            startY: -100 - Math.abs(i) * 30,
+                            controlX: centerX,
+                            controlY: (startY + i * spacing)/2
+                        }
+                    ));
+                }
+                
+                // Horizontal line
+                for (let i = -2; i <= 2; i++) {
+                    if (i === 0) continue; // Skip center (already placed)
+                    formations.push(this.createEnemy(centerX + i * spacing, startY,
+                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
+                        this.enemyTypes.GRUNT,
+                        {
+                            startX: i < 0 ? -50 : this.canvas.width + 50,
+                            startY: -50,
+                            controlX: centerX + i * spacing,
+                            controlY: startY - 30
+                        }
+                    ));
+                }
+            },
+            DOUBLE_V: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = 80;
+                const spacing = 35;
+                
+                // Front V
+                for (let i = -2; i <= 2; i++) {
+                    formations.push(this.createEnemy(
+                        centerX + i * spacing,
+                        startY + Math.abs(i) * spacing,
+                        i === 0 ? this.enemyTypes.BOSS :
+                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
+                        this.enemyTypes.GRUNT,
+                        {
+                            startX: i < 0 ? -50 : this.canvas.width + 50,
+                            startY: -50,
+                            controlX: centerX + i * spacing,
+                            controlY: startY - 30
+                        }
+                    ));
+                }
+                
+                // Back V (inverted)
+                for (let i = -2; i <= 2; i++) {
+                    formations.push(this.createEnemy(
+                        centerX + i * spacing,
+                        startY - Math.abs(i) * spacing + 100,
+                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
+                        this.enemyTypes.GRUNT,
+                        {
+                            startX: i < 0 ? -50 : this.canvas.width + 50,
+                            startY: -100,
+                            controlX: centerX + i * spacing,
+                            controlY: startY + 30
+                        }
+                    ));
+                }
             }
         };
 
@@ -591,7 +710,7 @@ class Game {
         if (this.wave % 3 === 0) {
             patterns.BOSS_WAVE();
         } else {
-            const patternKeys = ['BUTTERFLY', 'V_SHAPE', 'DIAMOND'];
+            const patternKeys = ['BUTTERFLY', 'V_SHAPE', 'DIAMOND', 'DIAMOND_WALL', 'CROSS', 'DOUBLE_V'];
             const pattern = patterns[patternKeys[this.wave % patternKeys.length]];
             pattern(baseConfig.totalEnemies);
         }
@@ -710,15 +829,37 @@ class Game {
             
             // Reset boss state
             this.bossConfig = {
-                baseHealth: 15,
-                healthMultiplier: 1.3,
+                baseHealth: {
+                    easy: 10,    // Less health on easy
+                    normal: 15,  // Current base health
+                    hard: 20     // More health on hard
+                },
+                healthMultiplier: {
+                    easy: 1.2,   // Slower health scaling
+                    normal: 1.3, // Current multiplier
+                    hard: 1.5    // Faster health scaling
+                },
+                shootInterval: {
+                    easy: 90,    // Shoots slower
+                    normal: 60,  // Current interval
+                    hard: 45     // Shoots faster
+                },
                 currentHealth: 0,
                 maxHealth: 0,
-                powerScale: 1, // Base power scale
-                updatePowerScale: function(wave) {
-                    // Increase boss power every 3 waves
-                    this.powerScale = 1 + (Math.floor(wave / 3) * 0.3); // 30% stronger each boss wave
-                    this.maxHealth = Math.ceil(this.baseHealth * Math.pow(this.healthMultiplier, Math.floor(wave / 3)));
+                powerScale: 1,
+                updatePowerScale: function(wave, difficulty) {
+                    // Scale boss power based on difficulty
+                    const baseScale = {
+                        easy: 0.2,    // 20% increase per boss wave
+                        normal: 0.3,  // 30% increase per boss wave
+                        hard: 0.4     // 40% increase per boss wave
+                    }[difficulty];
+                    
+                    this.powerScale = 1 + (Math.floor(wave / 3) * baseScale);
+                    this.maxHealth = Math.ceil(
+                        this.baseHealth[difficulty] * 
+                        Math.pow(this.healthMultiplier[difficulty], Math.floor(wave / 3))
+                    );
                     this.currentHealth = this.maxHealth;
                 }
             };
