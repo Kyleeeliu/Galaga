@@ -68,7 +68,8 @@ class Game {
             levelUp: new Audio('sounds/level-up.wav'),
             powerupHit: new Audio('sounds/powerup-hit.wav'),
             powerupCollect: new Audio('sounds/powerup-collect.wav'),
-            powerupExpire: new Audio('sounds/powerup-expire.wav')
+            powerupExpire: new Audio('sounds/powerup-expire.wav'),
+            clash: new Audio('sounds/clash.wav')
         };
         
         // Mute all sounds initially (unmute on first click)
@@ -316,6 +317,9 @@ class Game {
         
         // Add explosion particles array
         this.explosions = [];
+        
+        // Add shockwaves array for bullet clash effects
+        this.shockwaves = [];
         
         this.init();
     }
@@ -1095,6 +1099,34 @@ class Game {
             particle.rotation += 0.1;
             return particle.alpha > 0;
         });
+        
+        // Check for bullet clashes
+        this.bullets.forEach((bullet, bulletIndex) => {
+            this.enemyBullets.forEach((enemyBullet, enemyBulletIndex) => {
+                if (this.checkBulletCollision(bullet, enemyBullet)) {
+                    // Create shockwave effect
+                    this.createShockwave(
+                        (bullet.x + enemyBullet.x) / 2,
+                        (bullet.y + enemyBullet.y) / 2
+                    );
+                    
+                    // Remove both bullets
+                    this.bullets.splice(bulletIndex, 1);
+                    this.enemyBullets.splice(enemyBulletIndex, 1);
+                    
+                    // Play clash sound
+                    this.sounds.clash.play();
+                }
+            });
+        });
+        
+        // Update shockwaves
+        this.shockwaves = this.shockwaves.filter(wave => {
+            wave.radius += wave.speed;
+            wave.speed *= 0.95;  // Slow down expansion
+            wave.alpha -= 0.03;  // Fade out
+            return wave.alpha > 0;
+        });
     }
     
     checkCollision(rect1, rect2) {
@@ -1550,6 +1582,35 @@ class Game {
             this.ctx.fillText(`POS: ${Math.round(this.player.x)},${Math.round(this.player.y)}`, 
                 rightEdge, bottomStart + lineHeight * 5);
         }
+        
+        // Draw shockwaves
+        this.shockwaves.forEach(wave => {
+            this.ctx.save();
+            this.ctx.strokeStyle = `rgba(255, 255, 255, ${wave.alpha})`;
+            this.ctx.lineWidth = 2;
+            
+            // Draw outer ring
+            this.ctx.beginPath();
+            this.ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+            this.ctx.stroke();
+            
+            // Draw inner ring
+            this.ctx.beginPath();
+            this.ctx.arc(wave.x, wave.y, wave.radius * 0.7, 0, Math.PI * 2);
+            this.ctx.stroke();
+            
+            // Draw center glow
+            const gradient = this.ctx.createRadialGradient(
+                wave.x, wave.y, 0,
+                wave.x, wave.y, wave.radius * 0.5
+            );
+            gradient.addColorStop(0, `rgba(255, 255, 255, ${wave.alpha * 0.5})`);
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            this.ctx.fillStyle = gradient;
+            this.ctx.fill();
+            
+            this.ctx.restore();
+        });
     }
     
     drawPlayer() {
@@ -2278,6 +2339,24 @@ class Game {
         this.ctx.fillStyle = '#fff';
         this.stars.forEach(star => {
             this.ctx.fillRect(star.x, star.y, star.size, star.size);
+        });
+    }
+
+    checkBulletCollision(bullet1, bullet2) {
+        const dx = bullet1.x - bullet2.x;
+        const dy = bullet1.y - bullet2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance < (bullet1.width + bullet2.width) / 2;
+    }
+
+    createShockwave(x, y) {
+        this.shockwaves.push({
+            x: x,
+            y: y,
+            radius: 2,
+            speed: 4,
+            alpha: 1,
+            color: '#fff'
         });
     }
 }
