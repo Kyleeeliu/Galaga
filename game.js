@@ -94,7 +94,7 @@ class Game {
         this.debugMode = false;
         
         // Adjust attack timing
-        this.attackCooldown = 180; // Longer delay between attacks
+        this.attackCooldown = 90; // Reduced from 180 to 90 for more frequent attacks
         this.maxSimultaneousAttackers = 2; // Limit number of attacking enemies
         
         // Add difficulty settings
@@ -140,10 +140,10 @@ class Game {
                 // For waves beyond 1, scale up the difficulty
                 if (wave > 1) {
                     return {
-                        totalEnemies: baseConfig.totalEnemies + ((wave - 1) * 3), // Add 3 enemies per wave
-                        bossCount: Math.min(5, Math.floor(1 + (wave / 3))), // Increase boss count every 3 waves, max 5
-                        escortCount: Math.min(8, Math.floor(4 + (wave / 2))), // Start at 4, increase every 2 waves, max 8
-                        speedMultiplier: 1 + ((wave - 1) * 0.2) // Increase speed by 0.2 each wave
+                        totalEnemies: baseConfig.totalEnemies + ((wave - 1) * 3),
+                        bossCount: Math.min(5, Math.floor(1 + (wave / 3))),
+                        escortCount: Math.min(8, Math.floor(4 + (wave / 2))), // More escorts per wave
+                        speedMultiplier: 1 + ((wave - 1) * 0.2)
                     };
                 }
                 
@@ -1998,40 +1998,43 @@ class Game {
         
         // Increase max attackers and base them on wave
         const currentAttackers = this.formations.filter(e => e.attacking).length;
-        const maxAttackers = Math.min(5, Math.floor(2 + this.wave/2)); // More attackers, up to 5 at once
+        const maxAttackers = Math.min(4, Math.floor(1 + this.wave/2)); // Allow up to 4 attackers
         
         if (currentAttackers >= maxAttackers) return;
         
-        // Much higher attack chance
-        const attackChance = 0.5 + (this.wave * 0.1); // Starts at 50%, increases by 10% per wave
+        // Much higher base attack chance
+        const attackChance = 0.7 + (this.wave * 0.1); // Starts at 70%, increases by 10% per wave
         if (Math.random() > attackChance) return;
         
-        enemy.attacking = true;
-        enemy.pattern = 'DIVE';
-        enemy.patternProgress = 0;
-        enemy.patternStartX = enemy.currentX;
-        enemy.patternStartY = enemy.currentY;
-        enemy.targetX = this.player.x;
-        enemy.targetY = this.canvas.height + 50;
-        enemy.tracking = true;
-        enemy.canShoot = true;
-        
-        // Add attack indicator
-        this.attackIndicators.push({
-            startX: enemy.currentX + enemy.width / 2,
-            startY: enemy.currentY + enemy.height / 2,
-            endX: this.player.x + this.player.width / 2,
-            endY: this.canvas.height - 50,
-            alpha: 1
-        });
-        
-        // Add target indicator
-        this.targetIndicators.push({
-            enemy: enemy,
-            alpha: 0,
-            scale: 2,
-            rotation: 0
-        });
+        // Start attack immediately when in position
+        if (enemy.inPosition) {
+            enemy.attacking = true;
+            enemy.pattern = 'DIVE';
+            enemy.patternProgress = 0;
+            enemy.patternStartX = enemy.currentX;
+            enemy.patternStartY = enemy.currentY;
+            enemy.targetX = this.player.x;
+            enemy.targetY = this.canvas.height + 50;
+            enemy.tracking = true;
+            enemy.canShoot = true;
+            
+            // Add attack indicator
+            this.attackIndicators.push({
+                startX: enemy.currentX + enemy.width / 2,
+                startY: enemy.currentY + enemy.height / 2,
+                endX: this.player.x + this.player.width / 2,
+                endY: this.canvas.height - 50,
+                alpha: 1
+            });
+            
+            // Add target indicator
+            this.targetIndicators.push({
+                enemy: enemy,
+                alpha: 0,
+                scale: 2,
+                rotation: 0
+            });
+        }
     }
 
     startNextWave() {
