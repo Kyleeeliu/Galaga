@@ -1548,39 +1548,62 @@ class Game {
                 }
             });
 
-            // Draw debug info in bottom right
+            // Draw enhanced debug info panel
+            this.ctx.fillStyle = 'rgba(0,0,0,0.7)';  // Semi-transparent background
+            this.ctx.fillRect(this.canvas.width - 150, this.canvas.height - 120, 140, 110);
+            
             this.ctx.fillStyle = '#fff';
             this.ctx.font = '6px "Press Start 2P"';
             this.ctx.textAlign = 'right';
             
             const rightEdge = this.canvas.width - 10;
-            const bottomStart = this.canvas.height - 60;
-            const lineHeight = 8;
+            const bottomStart = this.canvas.height - 110;
+            const lineHeight = 10;
+            let line = 0;
             
-            this.ctx.fillText('DEBUG MODE (H)', rightEdge, bottomStart);
+            // Title with toggle key
+            this.ctx.fillStyle = '#0f0';
+            this.ctx.fillText('DEBUG MODE (H)', rightEdge, bottomStart + lineHeight * line++);
             
-            // Add current formation pattern
+            // Wave and pattern info
+            this.ctx.fillStyle = '#ff0';
             const currentPattern = this.wave % 3 === 0 ? 'BOSS WAVE' : 
                 ['ARROW', 'SPIRAL', 'FORTRESS'][this.wave % 3];
-            this.ctx.fillText(`PATTERN: ${currentPattern}`, rightEdge, bottomStart + lineHeight);
+            this.ctx.fillText(`WAVE ${this.wave} - ${currentPattern}`, rightEdge, bottomStart + lineHeight * line++);
             
-            // Add enemies left counter
+            // Enemy counts and types
             const enemiesLeft = this.formations.filter(enemy => 
                 enemy.currentX > -50 && enemy.currentY < this.canvas.height
             ).length;
-            this.ctx.fillText(`ENEMIES: ${enemiesLeft}`, rightEdge, bottomStart + lineHeight * 2);
+            const attackingCount = this.formations.filter(e => e.attacking).length;
+            this.ctx.fillStyle = '#f88';
+            this.ctx.fillText(`ENEMIES: ${enemiesLeft} (${attackingCount} ATTACKING)`, rightEdge, bottomStart + lineHeight * line++);
             
-            this.ctx.fillText(`ENTITIES: ${this.formations.length + this.bullets.length + this.powerUps.length}`, 
-                rightEdge, bottomStart + lineHeight * 3);
-            
-            // Add enemy type breakdown
+            // Enemy type breakdown
             const bosses = this.formations.filter(e => e.type === this.enemyTypes.BOSS && e.currentX > -50).length;
             const escorts = this.formations.filter(e => e.type === this.enemyTypes.ESCORT && e.currentX > -50).length;
             const grunts = this.formations.filter(e => e.type === this.enemyTypes.GRUNT && e.currentX > -50).length;
-            this.ctx.fillText(`B:${bosses} E:${escorts} G:${grunts}`, rightEdge, bottomStart + lineHeight * 4);
+            this.ctx.fillStyle = '#8f8';
+            this.ctx.fillText(`BOSS:${bosses} ESCORT:${escorts} GRUNT:${grunts}`, rightEdge, bottomStart + lineHeight * line++);
             
-            this.ctx.fillText(`POS: ${Math.round(this.player.x)},${Math.round(this.player.y)}`, 
-                rightEdge, bottomStart + lineHeight * 5);
+            // Attack stats
+            this.ctx.fillStyle = '#8ff';
+            this.ctx.fillText(`ATTACK CHANCE: ${Math.round((0.7 + (this.wave * 0.1)) * 100)}%`, rightEdge, bottomStart + lineHeight * line++);
+            this.ctx.fillText(`MAX ATTACKERS: ${Math.min(4, Math.floor(1 + this.wave/2))}`, rightEdge, bottomStart + lineHeight * line++);
+            
+            // Entity counts
+            this.ctx.fillStyle = '#f8f';
+            this.ctx.fillText(`BULLETS: ${this.bullets.length}/${this.enemyBullets.length}`, rightEdge, bottomStart + lineHeight * line++);
+            this.ctx.fillText(`EFFECTS: ${this.explosions.length}/${this.shockwaves.length}`, rightEdge, bottomStart + lineHeight * line++);
+            
+            // Player position and state
+            this.ctx.fillStyle = '#0ff';
+            this.ctx.fillText(`POS: ${Math.round(this.player.x)},${Math.round(this.player.y)}`, rightEdge, bottomStart + lineHeight * line++);
+            const powerups = Object.entries(this.playerPowerUps)
+                .filter(([_, active]) => active)
+                .map(([name]) => name.charAt(0))
+                .join('');
+            this.ctx.fillText(`POWERUPS: ${powerups || 'NONE'}`, rightEdge, bottomStart + lineHeight * line++);
         }
         
         // Draw shockwaves
