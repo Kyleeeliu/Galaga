@@ -321,6 +321,55 @@ class Game {
         // Add shockwaves array for bullet clash effects
         this.shockwaves = [];
         
+        // Add new boss attack patterns configuration after the bossConfig object
+        this.bossAttackPatterns = {
+            SINGLE: {
+                cooldown: 1000,
+                execute: (boss) => {
+                    this.createEnemyBullet(boss, Math.PI/2); // Straight down
+                }
+            },
+            SPREAD: {
+                cooldown: 800,
+                execute: (boss) => {
+                    const angles = [-30, 0, 30];
+                    angles.forEach(angle => {
+                        const radians = (angle * Math.PI) / 180 + Math.PI/2;
+                        this.createEnemyBullet(boss, radians);
+                    });
+                }
+            },
+            BURST: {
+                cooldown: 150,
+                burstCount: 5,
+                burstDelay: 100,
+                execute: (boss) => {
+                    if (boss.burstCount === undefined) boss.burstCount = 0;
+                    if (boss.burstCount < this.bossAttackPatterns.BURST.burstCount) {
+                        this.createEnemyBullet(boss, Math.PI/2);
+                        boss.burstCount++;
+                    } else {
+                        boss.burstCount = 0;
+                        boss.currentPattern = (boss.currentPattern + 1) % 4;
+                    }
+                }
+            },
+            CIRCLE: {
+                cooldown: 1200,
+                execute: (boss) => {
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i * Math.PI/4);
+                        this.createEnemyBullet(boss, angle);
+                    }
+                }
+            }
+        };
+        
+        // Add auto-fire state
+        this.autoFire = false;
+        this.autoFireCooldown = 0;
+        this.autoFireRate = 150; // Time between shots in milliseconds
+        
         this.init();
     }
     
@@ -365,6 +414,11 @@ class Game {
                 if (e.key === 'ArrowDown' || e.key === 's') {
                     this.changeDifficulty(1);
                 }
+            }
+            
+            // Toggle auto-fire with 'F' key
+            if (e.key.toLowerCase() === 'f') {
+                this.autoFire = !this.autoFire;
             }
         });
         
@@ -561,6 +615,143 @@ class Game {
 
                 // Update boss power scaling
                 this.bossConfig.updatePowerScale(this.wave, 'normal');
+            },
+            
+            DIAMOND: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = Math.min(80, maxY);
+                const spacing = 40;
+                
+                // Create diamond shape
+                for (let layer = 0; layer < 4; layer++) {
+                    const width = layer < 2 ? layer + 1 : 4 - layer;
+                    for (let i = 0; i < width; i++) {
+                        const x = centerX + (i - (width-1)/2) * spacing;
+                        const y = startY + layer * spacing;
+                        formations.push(this.createEnemy(x, y,
+                            layer === 0 ? this.enemyTypes.BOSS :
+                            layer === 1 ? this.enemyTypes.ESCORT :
+                            this.enemyTypes.GRUNT,
+                            {
+                                startX: x < centerX ? -50 : this.canvas.width + 50,
+                                startY: -50,
+                                controlX: x,
+                                controlY: y - 30
+                            }
+                        ));
+                    }
+                }
+            },
+            
+            CROSS: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = Math.min(80, maxY);
+                const spacing = 35;
+                
+                // Create cross shape
+                for (let i = -2; i <= 2; i++) {
+                    // Horizontal line
+                    formations.push(this.createEnemy(
+                        centerX + i * spacing,
+                        startY,
+                        i === 0 ? this.enemyTypes.BOSS :
+                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
+                        this.enemyTypes.GRUNT,
+                        {
+                            startX: centerX + i * spacing,
+                            startY: -50,
+                            controlX: centerX + i * spacing,
+                            controlY: startY - 30
+                        }
+                    ));
+                    
+                    // Vertical line (skip center to avoid overlap)
+                    if (i !== 0) {
+                        formations.push(this.createEnemy(
+                            centerX,
+                            startY + i * spacing,
+                            Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
+                            this.enemyTypes.GRUNT,
+                            {
+                                startX: centerX,
+                                startY: -50,
+                                controlX: centerX,
+                                controlY: startY + i * spacing - 30
+                            }
+                        ));
+                    }
+                }
+            },
+            
+            WINGS: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = Math.min(80, maxY);
+                const spacing = 35;
+                
+                // Boss in center
+                formations.push(this.createEnemy(centerX, startY,
+                    this.enemyTypes.BOSS,
+                    {
+                        startX: centerX,
+                        startY: -50,
+                        controlX: centerX,
+                        controlY: startY - 30
+                    }
+                ));
+                
+                // Create wing shapes on both sides
+                for (let side = -1; side <= 1; side += 2) {
+                    for (let row = 0; row < 3; row++) {
+                        for (let col = 1; col <= 3-row; col++) {
+                            formations.push(this.createEnemy(
+                                centerX + (col * spacing * side),
+                                startY + (row * spacing),
+                                row === 0 ? this.enemyTypes.ESCORT : this.enemyTypes.GRUNT,
+                                {
+                                    startX: side < 0 ? -50 : this.canvas.width + 50,
+                                    startY: -50,
+                                    controlX: centerX + (col * spacing * side),
+                                    controlY: startY + (row * spacing) - 30
+                                }
+                            ));
+                        }
+                    }
+                }
+            },
+            
+            HEXAGON: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = Math.min(80, maxY);
+                const radius = 60;
+                const sides = 6;
+                
+                // Boss in center
+                formations.push(this.createEnemy(centerX, startY,
+                    this.enemyTypes.BOSS,
+                    {
+                        startX: centerX,
+                        startY: -50,
+                        controlX: centerX,
+                        controlY: startY - 30
+                    }
+                ));
+                
+                // Create hexagon points
+                for (let i = 0; i < sides; i++) {
+                    const angle = (i / sides) * Math.PI * 2;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = startY + Math.sin(angle) * radius;
+                    
+                    formations.push(this.createEnemy(x, y,
+                        i % 2 === 0 ? this.enemyTypes.ESCORT : this.enemyTypes.GRUNT,
+                        {
+                            startX: x < centerX ? -50 : this.canvas.width + 50,
+                            startY: -50,
+                            controlX: x,
+                            controlY: y - 30
+                        }
+                    ));
+                }
             }
         };
 
@@ -568,7 +759,7 @@ class Game {
         if (this.wave % 3 === 0) {
             patterns.BOSS_WAVE();
         } else {
-            const patternKeys = ['ARROW', 'SPIRAL', 'FORTRESS'];
+            const patternKeys = ['ARROW', 'SPIRAL', 'FORTRESS', 'DIAMOND', 'CROSS', 'WINGS', 'HEXAGON'];
             const pattern = patterns[patternKeys[this.wave % patternKeys.length]];
             pattern(baseConfig.totalEnemies);
         }
@@ -587,7 +778,7 @@ class Game {
         const speedScale = 1 + (this.wave * 0.05); // 5% faster each wave
         const healthScale = 1 + (Math.floor(this.wave / 3) * 0.2); // 20% more health every 3 waves
 
-        return {
+        const enemy = {
             currentX: path ? path.startX : boundedX,
             currentY: path ? path.startY : -50,
             targetX: boundedX,  // Use bounded position
@@ -611,6 +802,15 @@ class Game {
                 this.bossConfig.maxHealth : 
                 Math.ceil(type === this.enemyTypes.ESCORT ? 2 * healthScale : 1 * healthScale)
         };
+        
+        if (type === this.enemyTypes.BOSS) {
+            enemy.currentPattern = 0;
+            enemy.patternTimer = 0;
+            enemy.lastShot = 0;
+            enemy.burstCount = 0;
+        }
+        
+        return enemy;
     }
     
     createDeathAnimation(x, y, type) {
@@ -871,8 +1071,9 @@ class Game {
         }
 
         // Update shooting
-        if (this.keys[' ']) {
-            if (!this.shooting) {  // Removed rapidFire check
+        const now = Date.now();
+        if (this.keys[' '] || (this.autoFire && now - this.autoFireCooldown >= this.autoFireRate)) {
+            if (!this.shooting) {
                 if (this.playerPowerUps.doubleShot) {
                     this.bullets.push(this.createPlayerBullet(
                         this.player.x + this.player.width / 4,
@@ -890,6 +1091,9 @@ class Game {
                 }
                 this.sounds.shoot.play();
                 this.shooting = true;
+                if (this.autoFire) {
+                    this.autoFireCooldown = now;
+                }
             }
         } else {
             this.shooting = false;
@@ -1126,6 +1330,28 @@ class Game {
             wave.speed *= 0.95;  // Slow down expansion
             wave.alpha -= 0.03;  // Fade out
             return wave.alpha > 0;
+        });
+
+        // Update boss shooting patterns
+        this.formations.forEach(enemy => {
+            if (enemy.type === this.enemyTypes.BOSS && enemy.inPosition) {
+                const now = Date.now();
+                const patterns = Object.values(this.bossAttackPatterns);
+                const currentPattern = patterns[enemy.currentPattern];
+                
+                if (now - enemy.lastShot >= currentPattern.cooldown) {
+                    currentPattern.execute(enemy);
+                    enemy.lastShot = now;
+                    
+                    // Change pattern periodically
+                    enemy.patternTimer += currentPattern.cooldown;
+                    if (enemy.patternTimer >= 3000) { // Change pattern every 3 seconds
+                        enemy.currentPattern = (enemy.currentPattern + 1) % patterns.length;
+                        enemy.patternTimer = 0;
+                        enemy.burstCount = 0;
+                    }
+                }
+            }
         });
     }
     
