@@ -2491,11 +2491,13 @@ class Game {
         return {
             x: x,
             y: y,
-            width: this.bulletEffects.player.width,
-            height: this.bulletEffects.player.height,
+            width: this.bulletEffects.player.width * 1.2,  // 20% larger hitbox
+            height: this.bulletEffects.player.height * 1.2, // 20% larger hitbox
             speed: 7,
             trail: [],
-            color: this.bulletEffects.player.color
+            color: this.bulletEffects.player.color,
+            visualWidth: this.bulletEffects.player.width,  // Keep original visual size
+            visualHeight: this.bulletEffects.player.height // Keep original visual size
         };
     }
 
@@ -2533,8 +2535,10 @@ class Game {
         this.enemyBullets.push({
             x: enemy.currentX + enemy.width/2,
             y: enemy.currentY + enemy.height,
-            width: enemy.isMegaBoss ? 8 : 4,
-            height: enemy.isMegaBoss ? 12 : 8,
+            width: (enemy.isMegaBoss ? 6 : 4) * 1.2,    // Boss bullets only slightly larger
+            height: (enemy.isMegaBoss ? 8 : 6) * 1.2,   // Boss bullets only slightly larger
+            visualWidth: enemy.isMegaBoss ? 6 : 4,      // Original visual size
+            visualHeight: enemy.isMegaBoss ? 8 : 6,     // Original visual size
             speed: speed,
             dx: Math.cos(angle) * speed,
             dy: Math.sin(angle) * speed,
