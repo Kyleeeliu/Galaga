@@ -326,27 +326,35 @@ class Game {
             SINGLE: {
                 cooldown: 1000,
                 execute: (boss) => {
-                    this.createEnemyBullet(boss, Math.PI/2); // Straight down
+                    // Random angle within 60 degree cone
+                    const angle = Math.PI/2 + (Math.random() - 0.5) * Math.PI/3;
+                    this.createEnemyBullet(boss, angle);
                 }
             },
             SPREAD: {
                 cooldown: 800,
                 execute: (boss) => {
-                    const angles = [-30, 0, 30];
-                    angles.forEach(angle => {
-                        const radians = (angle * Math.PI) / 180 + Math.PI/2;
-                        this.createEnemyBullet(boss, radians);
-                    });
+                    // Random number of bullets between 2-4
+                    const bulletCount = 2 + Math.floor(Math.random() * 3);
+                    const baseAngle = Math.PI/2 + (Math.random() - 0.5) * Math.PI/6;
+                    const spread = Math.PI/4; // 45 degree spread
+                    
+                    for (let i = 0; i < bulletCount; i++) {
+                        const angle = baseAngle + (spread * (i/(bulletCount-1) - 0.5));
+                        this.createEnemyBullet(boss, angle);
+                    }
                 }
             },
             BURST: {
                 cooldown: 150,
-                burstCount: 5,
+                burstCount: 3, // Reduced from 5
                 burstDelay: 100,
                 execute: (boss) => {
                     if (boss.burstCount === undefined) boss.burstCount = 0;
                     if (boss.burstCount < this.bossAttackPatterns.BURST.burstCount) {
-                        this.createEnemyBullet(boss, Math.PI/2);
+                        // Random angle within 45 degree cone
+                        const angle = Math.PI/2 + (Math.random() - 0.5) * Math.PI/4;
+                        this.createEnemyBullet(boss, angle);
                         boss.burstCount++;
                     } else {
                         boss.burstCount = 0;
@@ -357,8 +365,12 @@ class Game {
             CIRCLE: {
                 cooldown: 1200,
                 execute: (boss) => {
-                    for (let i = 0; i < 8; i++) {
-                        const angle = (i * Math.PI/4);
+                    // Random number of bullets between 6-8
+                    const bulletCount = 6 + Math.floor(Math.random() * 3);
+                    const startAngle = Math.random() * Math.PI * 2; // Random starting angle
+                    
+                    for (let i = 0; i < bulletCount; i++) {
+                        const angle = startAngle + (i * Math.PI * 2 / bulletCount);
                         this.createEnemyBullet(boss, angle);
                     }
                 }
@@ -983,14 +995,30 @@ class Game {
                 ].chance;
                 
                 if (Math.random() < shootChance) {
+                    // Calculate angle towards player with random spread
+                    const dx = this.player.x - enemy.currentX;
+                    const dy = this.player.y - enemy.currentY;
+                    const baseAngle = Math.atan2(dy, dx);
+                    
+                    // Add random spread based on enemy type
+                    const spread = enemy.type === this.enemyTypes.BOSS ? Math.PI/6 : // 30 degrees
+                                  enemy.type === this.enemyTypes.ESCORT ? Math.PI/4 : // 45 degrees
+                                  Math.PI/3; // 60 degrees for grunts
+                    
+                    const finalAngle = baseAngle + (Math.random() - 0.5) * spread;
+                    
+                    const bulletSpeed = this.enemyShootingConfig[
+                        Object.keys(this.enemyTypes)[enemy.type]
+                    ].bulletSpeed;
+                    
                     this.enemyBullets.push({
                         x: enemy.currentX + enemy.width / 2,
                         y: enemy.currentY + enemy.height,
                         width: 4,
                         height: 8,
-                        speed: this.enemyShootingConfig[
-                            Object.keys(this.enemyTypes)[enemy.type]
-                        ].bulletSpeed,
+                        speed: bulletSpeed,
+                        dx: Math.cos(finalAngle) * bulletSpeed,
+                        dy: Math.sin(finalAngle) * bulletSpeed,
                         color: this.enemyShootingConfig[
                             Object.keys(this.enemyTypes)[enemy.type]
                         ].color
@@ -2242,41 +2270,48 @@ class Game {
     }
 
     startAttack(enemy) {
-        // Only allow escort enemies to attack
         if (enemy.type !== this.enemyTypes.ESCORT) return;
         
-        // Increase max attackers and base them on wave
         const currentAttackers = this.formations.filter(e => e.attacking).length;
-        const maxAttackers = Math.min(4, Math.floor(1 + this.wave/2)); // Allow up to 4 attackers
+        const maxAttackers = Math.min(4, Math.floor(1 + this.wave/2));
         
         if (currentAttackers >= maxAttackers) return;
         
-        // Much higher base attack chance
-        const attackChance = 0.7 + (this.wave * 0.1); // Starts at 70%, increases by 10% per wave
+        const attackChance = 0.7 + (this.wave * 0.1);
         if (Math.random() > attackChance) return;
         
-        // Start attack immediately when in position
         if (enemy.inPosition) {
             enemy.attacking = true;
-            enemy.pattern = 'DIVE';
+            
+            // Random attack pattern selection
+            const patterns = ['DIVE', 'SWEEP', 'ZIGZAG'];
+            enemy.pattern = patterns[Math.floor(Math.random() * patterns.length)];
+            
             enemy.patternProgress = 0;
             enemy.patternStartX = enemy.currentX;
             enemy.patternStartY = enemy.currentY;
-            enemy.targetX = this.player.x;
+            
+            // Add some randomness to target position
+            const spreadX = 100; // pixels of horizontal spread
+            enemy.targetX = this.player.x + (Math.random() - 0.5) * spreadX;
             enemy.targetY = this.canvas.height + 50;
-            enemy.tracking = true;
+            
+            // Add random movement modifiers
+            enemy.amplitude = 50 + Math.random() * 50; // For zigzag/sweep patterns
+            enemy.frequency = 0.02 + Math.random() * 0.03; // Movement frequency
+            
+            enemy.tracking = Math.random() < 0.7; // 70% chance to track player
             enemy.canShoot = true;
             
             // Add attack indicator
             this.attackIndicators.push({
                 startX: enemy.currentX + enemy.width / 2,
                 startY: enemy.currentY + enemy.height / 2,
-                endX: this.player.x + this.player.width / 2,
+                endX: enemy.targetX + enemy.width / 2,
                 endY: this.canvas.height - 50,
                 alpha: 1
             });
             
-            // Add target indicator
             this.targetIndicators.push({
                 enemy: enemy,
                 alpha: 0,
