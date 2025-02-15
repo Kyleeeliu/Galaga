@@ -63,14 +63,15 @@ class Game {
             doubleShot: false,
             speedUp: false,
             shield: false,
-            permanentSpeed: false,
-            permanentShot: false,
             bulletSpeed: false,
             smallShip: false,
             drone: false,
-            permanentBullet: false,
-            permanentSize: false,
-            permanentDrone: false
+            // Track stacks for permanent upgrades
+            permanentSpeedStacks: 0,
+            permanentShotStacks: 0,
+            permanentBulletStacks: 0,
+            permanentSizeStacks: 0,
+            permanentDroneStacks: 0
         };
         
         // Initialize sounds
@@ -1121,14 +1122,15 @@ class Game {
             if (!this.shooting) {
                 // Main ship bullets
                 if (this.playerPowerUps.doubleShot) {
-                    this.bullets.push(this.createPlayerBullet(
-                        this.player.x + this.player.width / 4,
-                        this.player.y
-                    ));
-                    this.bullets.push(this.createPlayerBullet(
-                        this.player.x + (this.player.width * 3) / 4,
-                        this.player.y
-                    ));
+                    const shotCount = 2 + Math.floor(this.playerPowerUps.permanentShotStacks / 2);
+                    for (let i = 0; i < shotCount; i++) {
+                        const spread = (i - (shotCount - 1) / 2) * 0.2;
+                        this.bullets.push(this.createPlayerBullet(
+                            this.player.x + this.player.width * ((i + 1) / (shotCount + 1)),
+                            this.player.y,
+                            spread
+                        ));
+                    }
                 } else {
                     this.bullets.push(this.createPlayerBullet(
                         this.player.x + this.player.width / 2,
@@ -1138,19 +1140,22 @@ class Game {
 
                 // Drone bullets
                 if (this.playerPowerUps.drone) {
-                    const droneOffset = 25;
-                    // Left drone bullets (angled slightly inward)
-                    this.bullets.push(this.createDroneBullet(
-                        this.player.x - droneOffset,
-                        this.player.y + 5,
-                        0.2  // Slight angle to the right
-                    ));
-                    // Right drone bullets (angled slightly inward)
-                    this.bullets.push(this.createDroneBullet(
-                        this.player.x + this.player.width + droneOffset,
-                        this.player.y + 5,
-                        -0.2  // Slight angle to the left
-                    ));
+                    const droneCount = 1 + this.playerPowerUps.permanentDroneStacks;
+                    for (let i = 0; i < droneCount; i++) {
+                        const offset = 25 + (i * 15);
+                        // Left drone
+                        this.bullets.push(this.createDroneBullet(
+                            this.player.x - offset,
+                            this.player.y + 5,
+                            0.2
+                        ));
+                        // Right drone
+                        this.bullets.push(this.createDroneBullet(
+                            this.player.x + this.player.width + offset,
+                            this.player.y + 5,
+                            -0.2
+                        ));
+                    }
                 }
 
                 this.sounds.shoot.play();
@@ -2216,11 +2221,11 @@ class Game {
                 document.getElementById('livesValue').textContent = this.lives;
                 break;
             case this.powerUpTypes.PERMANENT_SPEED:
-                this.playerPowerUps.permanentSpeed = true;
-                this.player.speed *= 1.5;
+                this.playerPowerUps.permanentSpeedStacks++;
+                this.player.speed *= 1.2; // Smaller increment per stack
                 break;
             case this.powerUpTypes.PERMANENT_SHOT:
-                this.playerPowerUps.permanentShot = true;
+                this.playerPowerUps.permanentShotStacks++;
                 this.playerPowerUps.doubleShot = true;
                 break;
             case this.powerUpTypes.BULLET_SPEED:
@@ -2261,19 +2266,24 @@ class Game {
                 }
                 break;
             case this.powerUpTypes.PERMANENT_BULLET:
-                this.playerPowerUps.permanentBullet = true;
+                this.playerPowerUps.permanentBulletStacks++;
                 this.playerPowerUps.bulletSpeed = true;
                 break;
             case this.powerUpTypes.PERMANENT_SIZE:
-                this.playerPowerUps.permanentSize = true;
-                this.playerPowerUps.smallShip = true;
-                this.player.width *= 0.7;
-                this.player.height *= 0.7;
+                this.playerPowerUps.permanentSizeStacks++;
+                this.player.width *= 0.9; // Smaller reduction per stack
+                this.player.height *= 0.9;
                 break;
             case this.powerUpTypes.PERMANENT_DRONE:
-                this.playerPowerUps.permanentDrone = true;
+                this.playerPowerUps.permanentDroneStacks++;
                 this.playerPowerUps.drone = true;
                 break;
+        }
+
+        // Update power-up effect message to show stacks
+        if (type >= this.powerUpTypes.PERMANENT_SPEED) {
+            const stacks = this.getStackCount(type);
+            this.createStackEffect(type, stacks);
         }
     }
 
@@ -2356,14 +2366,15 @@ class Game {
             doubleShot: false,
             speedUp: false,
             shield: false,
-            permanentSpeed: false,
-            permanentShot: false,
             bulletSpeed: false,
             smallShip: false,
             drone: false,
-            permanentBullet: false,
-            permanentSize: false,
-            permanentDrone: false
+            // Track stacks for permanent upgrades
+            permanentSpeedStacks: 0,
+            permanentShotStacks: 0,
+            permanentBulletStacks: 0,
+            permanentSizeStacks: 0,
+            permanentDroneStacks: 0
         };
         
         // Reset UI
@@ -2728,13 +2739,20 @@ class Game {
         return false;
     }
 
-    createPlayerBullet(x, y) {
+    createPlayerBullet(x, y, angle = 0) {
+        const baseSpeed = 7;
+        const speedBonus = this.playerPowerUps.bulletSpeed ? 3 : 0;
+        const stackBonus = this.playerPowerUps.permanentBulletStacks * 0.5;
+        const totalSpeed = baseSpeed + speedBonus + stackBonus;
+
         return {
             x: x,
             y: y,
             width: this.bulletEffects.player.width * 1.2,
             height: this.bulletEffects.player.height * 1.2,
-            speed: this.playerPowerUps.bulletSpeed ? 10 : 7, // Faster with power-up
+            speed: totalSpeed,
+            dx: Math.sin(angle) * totalSpeed,
+            dy: -Math.cos(angle) * totalSpeed,
             trail: [],
             color: this.bulletEffects.player.color,
             visualWidth: this.bulletEffects.player.width,
@@ -2900,6 +2918,43 @@ class Game {
             visualWidth: this.bulletEffects.player.width,
             visualHeight: this.bulletEffects.player.height
         };
+    }
+
+    // Add method to get stack count for a power-up type
+    getStackCount(type) {
+        switch(type) {
+            case this.powerUpTypes.PERMANENT_SPEED:
+                return this.playerPowerUps.permanentSpeedStacks;
+            case this.powerUpTypes.PERMANENT_SHOT:
+                return this.playerPowerUps.permanentShotStacks;
+            case this.powerUpTypes.PERMANENT_BULLET:
+                return this.playerPowerUps.permanentBulletStacks;
+            case this.powerUpTypes.PERMANENT_SIZE:
+                return this.playerPowerUps.permanentSizeStacks;
+            case this.powerUpTypes.PERMANENT_DRONE:
+                return this.playerPowerUps.permanentDroneStacks;
+            default:
+                return 0;
+        }
+    }
+
+    // Add method to create stack effect message
+    createStackEffect(type, stacks) {
+        const baseMessages = {
+            [this.powerUpTypes.PERMANENT_SPEED]: 'SPEED',
+            [this.powerUpTypes.PERMANENT_SHOT]: 'SHOT',
+            [this.powerUpTypes.PERMANENT_BULLET]: 'BULLET',
+            [this.powerUpTypes.PERMANENT_SIZE]: 'SIZE',
+            [this.powerUpTypes.PERMANENT_DRONE]: 'DRONE'
+        };
+
+        this.powerUpEffects.push({
+            message: `${baseMessages[type]} x${stacks}`,
+            color: '#f0f',
+            alpha: 1,
+            scale: 0,
+            y: this.player.y
+        });
     }
 }
 
