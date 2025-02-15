@@ -10,7 +10,7 @@ class Game {
             y: this.canvas.height - 50,
             width: 30,
             height: 20,
-            speed: 4
+            speed: 3  // Reduced from 4 to 3
         };
         
         this.bullets = [];
@@ -49,16 +49,28 @@ class Game {
             DOUBLE_SHOT: 0,
             SPEED_UP: 1,
             SHIELD: 2,
-            EXTRA_LIFE: 3,        // New type
-            PERMANENT_SPEED: 4,   // New permanent power-up
-            PERMANENT_SHOT: 5     // New permanent power-up
+            EXTRA_LIFE: 3,
+            PERMANENT_SPEED: 4,
+            PERMANENT_SHOT: 5,
+            BULLET_SPEED: 6,      // New: Faster bullets
+            SMALL_SHIP: 7,        // New: Smaller hitbox
+            DRONE: 8,             // New: Helper drone
+            PERMANENT_BULLET: 9,  // New: Permanent bullet speed
+            PERMANENT_SIZE: 10,   // New: Permanent small size
+            PERMANENT_DRONE: 11   // New: Permanent drone
         };
         this.playerPowerUps = {
             doubleShot: false,
             speedUp: false,
             shield: false,
             permanentSpeed: false,
-            permanentShot: false
+            permanentShot: false,
+            bulletSpeed: false,
+            smallShip: false,
+            drone: false,
+            permanentBullet: false,
+            permanentSize: false,
+            permanentDrone: false
         };
         
         // Initialize sounds
@@ -1955,6 +1967,24 @@ class Game {
         this.ctx.fillRect(4, 4, 2, 4);     // Right blue wing
         
         this.ctx.restore();
+
+        // Draw drone if active
+        if (this.playerPowerUps.drone) {
+            const droneOffset = 25;
+            const droneY = this.player.y + 5;
+            
+            // Draw left drone
+            this.ctx.save();
+            this.ctx.translate(this.player.x - droneOffset, droneY);
+            this.drawDrone();
+            this.ctx.restore();
+            
+            // Draw right drone
+            this.ctx.save();
+            this.ctx.translate(this.player.x + this.player.width + droneOffset, droneY);
+            this.drawDrone();
+            this.ctx.restore();
+        }
     }
 
     drawEnemy(enemy) {
@@ -2078,7 +2108,13 @@ class Game {
             [this.powerUpTypes.SHIELD]: '⚡',
             [this.powerUpTypes.EXTRA_LIFE]: '♥',
             [this.powerUpTypes.PERMANENT_SPEED]: '∞S',
-            [this.powerUpTypes.PERMANENT_SHOT]: '∞2'
+            [this.powerUpTypes.PERMANENT_SHOT]: '∞2',
+            [this.powerUpTypes.BULLET_SPEED]: '→+',
+            [this.powerUpTypes.SMALL_SHIP]: '◊',
+            [this.powerUpTypes.DRONE]: '★',
+            [this.powerUpTypes.PERMANENT_BULLET]: '∞→',
+            [this.powerUpTypes.PERMANENT_SIZE]: '∞◊',
+            [this.powerUpTypes.PERMANENT_DRONE]: '∞★'
         };
         
         const powerUpLabels = {
@@ -2087,7 +2123,13 @@ class Game {
             [this.powerUpTypes.SHIELD]: 'SHIELD',
             [this.powerUpTypes.EXTRA_LIFE]: 'LIFE',
             [this.powerUpTypes.PERMANENT_SPEED]: 'PERM SPEED',
-            [this.powerUpTypes.PERMANENT_SHOT]: 'PERM SHOT'
+            [this.powerUpTypes.PERMANENT_SHOT]: 'PERM SHOT',
+            [this.powerUpTypes.BULLET_SPEED]: 'FAST SHOT',
+            [this.powerUpTypes.SMALL_SHIP]: 'SMALL',
+            [this.powerUpTypes.DRONE]: 'DRONE',
+            [this.powerUpTypes.PERMANENT_BULLET]: 'PERM FAST',
+            [this.powerUpTypes.PERMANENT_SIZE]: 'PERM SMALL',
+            [this.powerUpTypes.PERMANENT_DRONE]: 'PERM DRONE'
         };
 
         this.powerUps.push({
@@ -2104,7 +2146,13 @@ class Game {
                    type === this.powerUpTypes.SHIELD ? '#ff0' :
                    type === this.powerUpTypes.EXTRA_LIFE ? '#f00' :
                    type === this.powerUpTypes.PERMANENT_SPEED ? '#f0f' :
-                   '#00f',
+                   type === this.powerUpTypes.PERMANENT_SHOT ? '#00f' :
+                   type === this.powerUpTypes.BULLET_SPEED ? '#fa0' :
+                   type === this.powerUpTypes.SMALL_SHIP ? '#0fa' :
+                   type === this.powerUpTypes.DRONE ? '#a0f' :
+                   type === this.powerUpTypes.PERMANENT_BULLET ? '#f80' :
+                   type === this.powerUpTypes.PERMANENT_SIZE ? '#8ff' :
+                   '#f0a',
             symbol: powerUpSymbols[type],
             label: powerUpLabels[type]
         });
@@ -2155,6 +2203,57 @@ class Game {
             case this.powerUpTypes.PERMANENT_SHOT:
                 this.playerPowerUps.permanentShot = true;
                 this.playerPowerUps.doubleShot = true;
+                break;
+            case this.powerUpTypes.BULLET_SPEED:
+                if (!this.playerPowerUps.permanentBullet) {
+                    this.playerPowerUps.bulletSpeed = true;
+                    setTimeout(() => {
+                        if (!this.playerPowerUps.permanentBullet) {
+                            this.playerPowerUps.bulletSpeed = false;
+                            this.sounds.powerupExpire.play();
+                        }
+                    }, 10000);
+                }
+                break;
+            case this.powerUpTypes.SMALL_SHIP:
+                if (!this.playerPowerUps.permanentSize) {
+                    this.playerPowerUps.smallShip = true;
+                    this.player.width *= 0.7;
+                    this.player.height *= 0.7;
+                    setTimeout(() => {
+                        if (!this.playerPowerUps.permanentSize) {
+                            this.playerPowerUps.smallShip = false;
+                            this.player.width /= 0.7;
+                            this.player.height /= 0.7;
+                            this.sounds.powerupExpire.play();
+                        }
+                    }, 12000);
+                }
+                break;
+            case this.powerUpTypes.DRONE:
+                if (!this.playerPowerUps.permanentDrone) {
+                    this.playerPowerUps.drone = true;
+                    setTimeout(() => {
+                        if (!this.playerPowerUps.permanentDrone) {
+                            this.playerPowerUps.drone = false;
+                            this.sounds.powerupExpire.play();
+                        }
+                    }, 15000);
+                }
+                break;
+            case this.powerUpTypes.PERMANENT_BULLET:
+                this.playerPowerUps.permanentBullet = true;
+                this.playerPowerUps.bulletSpeed = true;
+                break;
+            case this.powerUpTypes.PERMANENT_SIZE:
+                this.playerPowerUps.permanentSize = true;
+                this.playerPowerUps.smallShip = true;
+                this.player.width *= 0.7;
+                this.player.height *= 0.7;
+                break;
+            case this.powerUpTypes.PERMANENT_DRONE:
+                this.playerPowerUps.permanentDrone = true;
+                this.playerPowerUps.drone = true;
                 break;
         }
     }
@@ -2239,7 +2338,13 @@ class Game {
             speedUp: false,
             shield: false,
             permanentSpeed: false,
-            permanentShot: false
+            permanentShot: false,
+            bulletSpeed: false,
+            smallShip: false,
+            drone: false,
+            permanentBullet: false,
+            permanentSize: false,
+            permanentDrone: false
         };
         
         // Reset UI
@@ -2608,13 +2713,13 @@ class Game {
         return {
             x: x,
             y: y,
-            width: this.bulletEffects.player.width * 1.2,  // 20% larger hitbox
-            height: this.bulletEffects.player.height * 1.2, // 20% larger hitbox
-            speed: 7,
+            width: this.bulletEffects.player.width * 1.2,
+            height: this.bulletEffects.player.height * 1.2,
+            speed: this.playerPowerUps.bulletSpeed ? 10 : 7, // Faster with power-up
             trail: [],
             color: this.bulletEffects.player.color,
-            visualWidth: this.bulletEffects.player.width,  // Keep original visual size
-            visualHeight: this.bulletEffects.player.height // Keep original visual size
+            visualWidth: this.bulletEffects.player.width,
+            visualHeight: this.bulletEffects.player.height
         };
     }
 
@@ -2734,6 +2839,15 @@ class Game {
             alpha: 1,
             color: '#fff'
         });
+    }
+
+    // Add drone drawing method
+    drawDrone() {
+        // Small helper drone design
+        this.ctx.fillStyle = '#0ff';
+        this.ctx.fillRect(-4, -4, 8, 8);
+        this.ctx.fillStyle = '#fff';
+        this.ctx.fillRect(-2, -2, 4, 4);
     }
 }
 
