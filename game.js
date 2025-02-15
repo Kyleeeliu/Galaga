@@ -1119,6 +1119,7 @@ class Game {
         const now = Date.now();
         if (this.keys[' '] || (this.autoFire && now - this.autoFireCooldown >= this.autoFireRate)) {
             if (!this.shooting) {
+                // Main ship bullets
                 if (this.playerPowerUps.doubleShot) {
                     this.bullets.push(this.createPlayerBullet(
                         this.player.x + this.player.width / 4,
@@ -1134,6 +1135,24 @@ class Game {
                         this.player.y
                     ));
                 }
+
+                // Drone bullets
+                if (this.playerPowerUps.drone) {
+                    const droneOffset = 25;
+                    // Left drone bullets (angled slightly inward)
+                    this.bullets.push(this.createDroneBullet(
+                        this.player.x - droneOffset,
+                        this.player.y + 5,
+                        0.2  // Slight angle to the right
+                    ));
+                    // Right drone bullets (angled slightly inward)
+                    this.bullets.push(this.createDroneBullet(
+                        this.player.x + this.player.width + droneOffset,
+                        this.player.y + 5,
+                        -0.2  // Slight angle to the left
+                    ));
+                }
+
                 this.sounds.shoot.play();
                 this.shooting = true;
                 if (this.autoFire) {
@@ -2843,11 +2862,44 @@ class Game {
 
     // Add drone drawing method
     drawDrone() {
-        // Small helper drone design
+        // Animate drone hover
+        const hoverOffset = Math.sin(Date.now() / 200) * 2;
+        
+        // Draw drone body
         this.ctx.fillStyle = '#0ff';
-        this.ctx.fillRect(-4, -4, 8, 8);
+        this.ctx.fillRect(-4, -4 + hoverOffset, 8, 8);
+        
+        // Draw core
         this.ctx.fillStyle = '#fff';
-        this.ctx.fillRect(-2, -2, 4, 4);
+        this.ctx.fillRect(-2, -2 + hoverOffset, 4, 4);
+        
+        // Draw energy glow
+        this.ctx.globalAlpha = 0.5;
+        this.ctx.shadowColor = '#0ff';
+        this.ctx.shadowBlur = 10;
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0 + hoverOffset, 6, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.globalAlpha = 1;
+        this.ctx.shadowBlur = 0;
+    }
+
+    // Add new method for creating drone bullets
+    createDroneBullet(x, y, angle) {
+        const speed = this.playerPowerUps.bulletSpeed ? 10 : 7;
+        return {
+            x: x,
+            y: y,
+            width: this.bulletEffects.player.width * 1.2,
+            height: this.bulletEffects.player.height * 1.2,
+            speed: speed,
+            dx: Math.sin(angle) * speed,  // Add horizontal movement
+            dy: -Math.cos(angle) * speed, // Maintain upward movement
+            trail: [],
+            color: '#0ff',  // Cyan color to match drones
+            visualWidth: this.bulletEffects.player.width,
+            visualHeight: this.bulletEffects.player.height
+        };
     }
 }
 
