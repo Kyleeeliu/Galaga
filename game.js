@@ -48,12 +48,17 @@ class Game {
         this.powerUpTypes = {
             DOUBLE_SHOT: 0,
             SPEED_UP: 1,
-            SHIELD: 2
+            SHIELD: 2,
+            EXTRA_LIFE: 3,        // New type
+            PERMANENT_SPEED: 4,   // New permanent power-up
+            PERMANENT_SHOT: 5     // New permanent power-up
         };
         this.playerPowerUps = {
             doubleShot: false,
             speedUp: false,
-            shield: false
+            shield: false,
+            permanentSpeed: false,
+            permanentShot: false
         };
         
         // Initialize sounds
@@ -192,9 +197,9 @@ class Game {
         
         // Add enemy shooting properties
         this.enemyShootingConfig = {
-            BOSS: { chance: 0.015, bulletSpeed: 3, color: '#f00' },    // Reduced from 0.03
-            ESCORT: { chance: 0.005, bulletSpeed: 2.5, color: '#f80' }, // Reduced from 0.01
-            GRUNT: { chance: 0.002, bulletSpeed: 2, color: '#ff0' }     // Reduced from 0.005
+            BOSS: { chance: 0.015, bulletSpeed: 3, color: '#f00' },    // Unchanged
+            ESCORT: { chance: 0.01, bulletSpeed: 2.5, color: '#f80' }, // Doubled from 0.005
+            GRUNT: { chance: 0.005, bulletSpeed: 2, color: '#ff0' }    // More than doubled from 0.002
         };
         
         // Add bullet effects configuration
@@ -1501,6 +1506,17 @@ class Game {
             this.ctx.arc(powerUp.x + 10, powerUp.y + 10, 10, 0, Math.PI * 2);
             this.ctx.fill();
 
+            // Draw symbol
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '12px "Press Start 2P"';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(powerUp.symbol, powerUp.x + 10, powerUp.y + 10);
+
+            // Draw label above
+            this.ctx.font = '8px "Press Start 2P"';
+            this.ctx.fillText(powerUp.label, powerUp.x + 10, powerUp.y - 15);
+
             // Draw health bars
             const barWidth = 20;
             const barHeight = 3;
@@ -2056,6 +2072,24 @@ class Game {
 
     createPowerUp(x, y) {
         const type = Math.floor(Math.random() * Object.keys(this.powerUpTypes).length);
+        const powerUpSymbols = {
+            [this.powerUpTypes.DOUBLE_SHOT]: '2X',
+            [this.powerUpTypes.SPEED_UP]: '>>',
+            [this.powerUpTypes.SHIELD]: '⚡',
+            [this.powerUpTypes.EXTRA_LIFE]: '♥',
+            [this.powerUpTypes.PERMANENT_SPEED]: '∞S',
+            [this.powerUpTypes.PERMANENT_SHOT]: '∞2'
+        };
+        
+        const powerUpLabels = {
+            [this.powerUpTypes.DOUBLE_SHOT]: 'DOUBLE',
+            [this.powerUpTypes.SPEED_UP]: 'SPEED',
+            [this.powerUpTypes.SHIELD]: 'SHIELD',
+            [this.powerUpTypes.EXTRA_LIFE]: 'LIFE',
+            [this.powerUpTypes.PERMANENT_SPEED]: 'PERM SPEED',
+            [this.powerUpTypes.PERMANENT_SHOT]: 'PERM SHOT'
+        };
+
         this.powerUps.push({
             x: Math.min(Math.max(x, 20), this.canvas.width - 40),
             y: Math.min(Math.max(y, 20), this.canvas.height - 100),
@@ -2063,33 +2097,45 @@ class Game {
             width: 20,
             height: 20,
             speed: 1,
-            health: 3,  // All power-ups require 3 hits
-            requiresShot: true,  // All power-ups require shooting
+            health: 3,
+            requiresShot: true,
             color: type === this.powerUpTypes.DOUBLE_SHOT ? '#0ff' :
-                   type === this.powerUpTypes.SPEED_UP ? '#0f0' : '#ff0'
+                   type === this.powerUpTypes.SPEED_UP ? '#0f0' :
+                   type === this.powerUpTypes.SHIELD ? '#ff0' :
+                   type === this.powerUpTypes.EXTRA_LIFE ? '#f00' :
+                   type === this.powerUpTypes.PERMANENT_SPEED ? '#f0f' :
+                   '#00f',
+            symbol: powerUpSymbols[type],
+            label: powerUpLabels[type]
         });
     }
 
     handlePowerUp(type) {
         this.sounds.powerupCollect.play();
-        
-        // Create collection effect
         this.createPowerUpEffect(type);
-        
+
         switch(type) {
             case this.powerUpTypes.DOUBLE_SHOT:
-                this.playerPowerUps.doubleShot = true;
-                setTimeout(() => {
-                    this.playerPowerUps.doubleShot = false;
-                    this.sounds.powerupExpire.play();
-                }, 10000);
+                if (!this.playerPowerUps.permanentShot) {
+                    this.playerPowerUps.doubleShot = true;
+                    setTimeout(() => {
+                        if (!this.playerPowerUps.permanentShot) {
+                            this.playerPowerUps.doubleShot = false;
+                            this.sounds.powerupExpire.play();
+                        }
+                    }, 10000);
+                }
                 break;
             case this.powerUpTypes.SPEED_UP:
-                this.player.speed *= 1.5;
-                setTimeout(() => {
-                    this.player.speed /= 1.5;
-                    this.sounds.powerupExpire.play();
-                }, 8000);
+                if (!this.playerPowerUps.permanentSpeed) {
+                    this.player.speed *= 1.5;
+                    setTimeout(() => {
+                        if (!this.playerPowerUps.permanentSpeed) {
+                            this.player.speed /= 1.5;
+                            this.sounds.powerupExpire.play();
+                        }
+                    }, 8000);
+                }
                 break;
             case this.powerUpTypes.SHIELD:
                 this.playerPowerUps.shield = true;
@@ -2097,6 +2143,18 @@ class Game {
                     this.playerPowerUps.shield = false;
                     this.sounds.powerupExpire.play();
                 }, 5000);
+                break;
+            case this.powerUpTypes.EXTRA_LIFE:
+                this.lives++;
+                document.getElementById('livesValue').textContent = this.lives;
+                break;
+            case this.powerUpTypes.PERMANENT_SPEED:
+                this.playerPowerUps.permanentSpeed = true;
+                this.player.speed *= 1.5;
+                break;
+            case this.powerUpTypes.PERMANENT_SHOT:
+                this.playerPowerUps.permanentShot = true;
+                this.playerPowerUps.doubleShot = true;
                 break;
         }
     }
@@ -2179,7 +2237,9 @@ class Game {
         this.playerPowerUps = {
             doubleShot: false,
             speedUp: false,
-            shield: false
+            shield: false,
+            permanentSpeed: false,
+            permanentShot: false
         };
         
         // Reset UI
