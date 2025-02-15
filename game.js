@@ -1127,7 +1127,7 @@ class Game {
             this.shooting = false;
         }
 
-        // Update bullets
+        // Update bullets (revert to original)
         this.bullets.forEach((bullet, index) => {
             bullet.y -= bullet.speed;
             
@@ -1144,6 +1144,22 @@ class Game {
                 this.bullets.splice(index, 1);
                 return;
             }
+        });
+
+        // Update enemy bullets
+        this.enemyBullets = this.enemyBullets.filter((bullet) => {
+            bullet.x += bullet.dx;
+            bullet.y += bullet.dy;
+
+            // Update trail for enemy bullets
+            bullet.trail = bullet.trail || [];
+            bullet.trail.unshift({ x: bullet.x, y: bullet.y });
+            if (bullet.trail.length > 16) { // Even longer trail for enemy bullets
+                bullet.trail.pop();
+            }
+
+            // Remove bullets that are off screen
+            return !(bullet.y > this.canvas.height || bullet.x < 0 || bullet.x > this.canvas.width);
         });
 
         // Update bullet collisions with enemies
@@ -1418,47 +1434,48 @@ class Game {
         // Draw player ship (Galaga Fighter)
         this.drawPlayer();
         
-        // Draw bullets
+        // Draw bullets with directional trails
         this.ctx.fillStyle = '#fff';
         this.bullets.forEach(bullet => {
             // Draw trail
-            if (this.bulletEffects.player.trail && bullet.trail.length) {
+            if (this.bulletEffects.player.trail && bullet.trail.length > 1) {
                 this.ctx.save();
-                for (let i = 0; i < bullet.trail.length; i++) {
+                for (let i = 1; i < bullet.trail.length; i++) {
                     const alpha = 1 - (i / bullet.trail.length);
                     this.ctx.fillStyle = `rgba(0, 255, 255, ${alpha * 0.5})`;
+                    
+                    // Calculate trail segment angle
+                    const dx = bullet.trail[i].x - bullet.trail[i-1].x;
+                    const dy = bullet.trail[i].y - bullet.trail[i-1].y;
+                    const angle = Math.atan2(dy, dx);
+                    
+                    // Draw rotated trail segment
+                    this.ctx.save();
+                    this.ctx.translate(bullet.trail[i].x, bullet.trail[i].y);
+                    this.ctx.rotate(angle);
                     this.ctx.fillRect(
-                        bullet.trail[i].x - bullet.width / 2,
-                        bullet.trail[i].y,
-                        bullet.width,
-                        bullet.height * 0.8
+                        -bullet.visualWidth/2,
+                        -bullet.visualHeight/2,
+                        bullet.visualWidth,
+                        bullet.visualHeight * 0.8
                     );
+                    this.ctx.restore();
                 }
                 this.ctx.restore();
             }
 
-            // Draw glow effect
-            if (this.bulletEffects.player.glow) {
-                this.ctx.save();
-                this.ctx.shadowColor = bullet.color;
-                this.ctx.shadowBlur = 10;
-                this.ctx.fillStyle = bullet.color;
-                this.ctx.fillRect(
-                    bullet.x - bullet.width / 2,
-                    bullet.y,
-                    bullet.width,
-                    bullet.height
-                );
-                this.ctx.restore();
-            }
-
-            // Draw main bullet
+            // Draw bullet
+            this.ctx.save();
+            const angle = Math.atan2(bullet.dy, bullet.dx);
+            this.ctx.translate(bullet.x, bullet.y);
+            this.ctx.rotate(angle);
             this.ctx.fillRect(
-                bullet.x - bullet.width / 2,
-                bullet.y,
-                bullet.width,
-                bullet.height
+                -bullet.visualWidth/2,
+                -bullet.visualHeight/2,
+                bullet.visualWidth,
+                bullet.visualHeight
             );
+            this.ctx.restore();
         });
         
         // Draw enemies
@@ -1632,18 +1649,23 @@ class Game {
             // Add warning trail effect
             this.ctx.save();
             this.ctx.strokeStyle = bullet.color;
-            this.ctx.lineWidth = 1;
+            this.ctx.lineWidth = 3;  // Thicker trail
             this.ctx.globalAlpha = 0.3;
             this.ctx.beginPath();
             this.ctx.moveTo(bullet.x, bullet.y);
-            this.ctx.lineTo(bullet.x, bullet.y - 20);
+            // Calculate trail end point based on bullet direction
+            const trailLength = 20;
+            this.ctx.lineTo(
+                bullet.x - (bullet.dx/bullet.speed) * trailLength, 
+                bullet.y - (bullet.dy/bullet.speed) * trailLength
+            );
             this.ctx.stroke();
             this.ctx.restore();
 
             // Draw glow effect
             this.ctx.save();
             this.ctx.shadowColor = bullet.color;
-            this.ctx.shadowBlur = 15;  // Increased from 8
+            this.ctx.shadowBlur = 15;
             this.ctx.beginPath();
             this.ctx.arc(bullet.x, bullet.y, bullet.width, 0, Math.PI * 2);
             this.ctx.fillStyle = bullet.color;
@@ -2566,18 +2588,21 @@ class Game {
     }
 
     createEnemyBullet(enemy, angle) {
-        const speed = enemy.bulletSpeed;
+        const speed = Math.min(enemy.bulletSpeed, 4); // Cap max speed
+        const dx = Math.cos(angle) * speed;
+        const dy = Math.sin(angle) * speed;
         this.enemyBullets.push({
             x: enemy.currentX + enemy.width/2,
             y: enemy.currentY + enemy.height,
-            width: (enemy.isMegaBoss ? 6 : 4) * 1.2,    // Boss bullets only slightly larger
-            height: (enemy.isMegaBoss ? 8 : 6) * 1.2,   // Boss bullets only slightly larger
-            visualWidth: enemy.isMegaBoss ? 6 : 4,      // Original visual size
-            visualHeight: enemy.isMegaBoss ? 8 : 6,     // Original visual size
+            width: (enemy.isMegaBoss ? 6 : 4) * 1.2,
+            height: (enemy.isMegaBoss ? 8 : 6) * 1.2,
+            visualWidth: enemy.isMegaBoss ? 8 : 6,      // Increased visual size
+            visualHeight: enemy.isMegaBoss ? 10 : 8,    // Increased visual size
             speed: speed,
-            dx: Math.cos(angle) * speed,
-            dy: Math.sin(angle) * speed,
-            color: enemy.isMegaBoss ? '#f00' : '#ff0'
+            dx: dx,
+            dy: dy,
+            color: enemy.isMegaBoss ? '#f00' : '#ff0',
+            trail: []  // Add trail array for enemy bullets
         });
     }
 
