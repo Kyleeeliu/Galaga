@@ -415,6 +415,10 @@ class Game {
         this.autoFireCooldown = 0;
         this.autoFireRate = 150; // Time between shots in milliseconds
         
+        // Add drone shooting cooldown
+        this.droneCooldown = 0;
+        this.droneReloadTime = 120; // 2 seconds at 60fps
+        
         this.init();
     }
     
@@ -1154,7 +1158,7 @@ class Game {
                 }
 
                 // Drone bullets
-                if (this.playerPowerUps.drone) {
+                if (this.playerPowerUps.drone && this.droneCooldown <= 0) {
                     const droneCount = 1 + this.playerPowerUps.permanentDroneStacks;
                     for (let i = 0; i < droneCount; i++) {
                         const offset = 25 + (i * 15);
@@ -1171,6 +1175,9 @@ class Game {
                             -0.2
                         ));
                     }
+                    this.droneCooldown = this.droneReloadTime;
+                } else if (this.droneCooldown > 0) {
+                    this.droneCooldown--;
                 }
 
                 this.sounds.shoot.play();
@@ -2916,12 +2923,13 @@ class Game {
         this.ctx.fillStyle = '#0ff';
         this.ctx.fillRect(-4, -4 + hoverOffset, 8, 8);
         
-        // Draw core
-        this.ctx.fillStyle = '#fff';
+        // Draw core with color based on reload state
+        const reloadProgress = 1 - (this.droneCooldown / this.droneReloadTime);
+        this.ctx.fillStyle = reloadProgress >= 1 ? '#fff' : `rgba(255, 255, 255, ${reloadProgress})`;
         this.ctx.fillRect(-2, -2 + hoverOffset, 4, 4);
         
         // Draw energy glow
-        this.ctx.globalAlpha = 0.5;
+        this.ctx.globalAlpha = 0.5 * reloadProgress;
         this.ctx.shadowColor = '#0ff';
         this.ctx.shadowBlur = 10;
         this.ctx.beginPath();
