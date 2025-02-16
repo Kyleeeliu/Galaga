@@ -210,9 +210,24 @@ class Game {
         
         // Add enemy shooting properties
         this.enemyShootingConfig = {
-            BOSS: { chance: 0.015, bulletSpeed: 3, color: '#f00' },    // Unchanged
-            ESCORT: { chance: 0.01, bulletSpeed: 2.5, color: '#f80' }, // Doubled from 0.005
-            GRUNT: { chance: 0.005, bulletSpeed: 2, color: '#ff0' }    // More than doubled from 0.002
+            BOSS: { 
+                chance: 0.015, 
+                bulletSpeed: 3, 
+                color: '#f00',
+                trackingChance: 0.3  // 30% chance for tracking bullets
+            },
+            ESCORT: { 
+                chance: 0.01, 
+                bulletSpeed: 2.5, 
+                color: '#f80',
+                trackingChance: 0.2  // 20% chance for tracking bullets
+            },
+            GRUNT: { 
+                chance: 0.005, 
+                bulletSpeed: 2, 
+                color: '#ff0',
+                trackingChance: 0.1  // 10% chance for tracking bullets
+            }
         };
         
         // Add bullet effects configuration
@@ -1122,9 +1137,9 @@ class Game {
             if (!this.shooting) {
                 // Main ship bullets
                 if (this.playerPowerUps.doubleShot) {
-                    const shotCount = 2 + Math.floor(this.playerPowerUps.permanentShotStacks / 2);
+                    const shotCount = Math.min(5, 2 + Math.floor(this.playerPowerUps.permanentShotStacks / 3)); // Cap at 5 shots
                     for (let i = 0; i < shotCount; i++) {
-                        const spread = (i - (shotCount - 1) / 2) * 0.2;
+                        const spread = (i - (shotCount - 1) / 2) * 0.15; // Reduced spread
                         this.bullets.push(this.createPlayerBullet(
                             this.player.x + this.player.width * ((i + 1) / (shotCount + 1)),
                             this.player.y,
@@ -2222,7 +2237,7 @@ class Game {
                 break;
             case this.powerUpTypes.PERMANENT_SPEED:
                 this.playerPowerUps.permanentSpeedStacks++;
-                this.player.speed *= 1.2; // Smaller increment per stack
+                this.player.speed *= 1.1; // Reduced from 1.2 to 1.1
                 break;
             case this.powerUpTypes.PERMANENT_SHOT:
                 this.playerPowerUps.permanentShotStacks++;
@@ -2271,11 +2286,11 @@ class Game {
                 break;
             case this.powerUpTypes.PERMANENT_SIZE:
                 this.playerPowerUps.permanentSizeStacks++;
-                this.player.width *= 0.9; // Smaller reduction per stack
-                this.player.height *= 0.9;
+                this.player.width *= 0.95; // Less reduction per stack (from 0.9)
+                this.player.height *= 0.95;
                 break;
             case this.powerUpTypes.PERMANENT_DRONE:
-                this.playerPowerUps.permanentDroneStacks++;
+                this.playerPowerUps.permanentDroneStacks = Math.min(3, this.playerPowerUps.permanentDroneStacks + 1); // Cap at 3 drones
                 this.playerPowerUps.drone = true;
                 break;
         }
@@ -2741,8 +2756,8 @@ class Game {
 
     createPlayerBullet(x, y, angle = 0) {
         const baseSpeed = 7;
-        const speedBonus = this.playerPowerUps.bulletSpeed ? 3 : 0;
-        const stackBonus = this.playerPowerUps.permanentBulletStacks * 0.5;
+        const speedBonus = this.playerPowerUps.bulletSpeed ? 2 : 0; // Reduced from 3
+        const stackBonus = Math.min(3, this.playerPowerUps.permanentBulletStacks * 0.3); // Cap stack bonus
         const totalSpeed = baseSpeed + speedBonus + stackBonus;
 
         return {
@@ -2790,21 +2805,35 @@ class Game {
     }
 
     createEnemyBullet(enemy, angle) {
-        const speed = Math.min(enemy.bulletSpeed, 4); // Cap max speed
-        const dx = Math.cos(angle) * speed;
-        const dy = Math.sin(angle) * speed;
+        const speed = Math.min(enemy.bulletSpeed, 4);
+        const isTracking = Math.random() < enemy.trackingChance;
+        
+        let dx, dy;
+        if (isTracking) {
+            // Calculate direction to player
+            const toPlayerX = this.player.x - enemy.currentX;
+            const toPlayerY = this.player.y - enemy.currentY;
+            const dist = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY);
+            dx = (toPlayerX / dist) * (speed * 0.7); // Slower tracking bullets
+            dy = (toPlayerY / dist) * (speed * 0.7);
+        } else {
+            dx = Math.cos(angle) * speed;
+            dy = Math.sin(angle) * speed;
+        }
+
         this.enemyBullets.push({
             x: enemy.currentX + enemy.width/2,
             y: enemy.currentY + enemy.height,
             width: (enemy.isMegaBoss ? 6 : 4) * 1.2,
             height: (enemy.isMegaBoss ? 8 : 6) * 1.2,
-            visualWidth: enemy.isMegaBoss ? 8 : 6,      // Increased visual size
-            visualHeight: enemy.isMegaBoss ? 10 : 8,    // Increased visual size
+            visualWidth: enemy.isMegaBoss ? 8 : 6,
+            visualHeight: enemy.isMegaBoss ? 10 : 8,
             speed: speed,
             dx: dx,
             dy: dy,
-            color: enemy.isMegaBoss ? '#f00' : '#ff0',
-            trail: []  // Add trail array for enemy bullets
+            color: isTracking ? '#f0f' : (enemy.isMegaBoss ? '#f00' : '#ff0'), // Purple for tracking bullets
+            trail: [],
+            isTracking: isTracking
         });
     }
 
