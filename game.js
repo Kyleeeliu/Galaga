@@ -253,36 +253,38 @@ class Game {
         // Add boss health configuration
         this.bossConfig = {
             baseHealth: {
-                easy: 10,    // Less health on easy
-                normal: 15,  // Current base health
-                hard: 20     // More health on hard
+                easy: 10,
+                normal: 15,
+                hard: 20
             },
             healthMultiplier: {
-                easy: 1.2,   // Slower health scaling
-                normal: 1.3, // Current multiplier
-                hard: 1.5    // Faster health scaling
+                easy: 1.3,   // Increased from 1.2
+                normal: 1.5, // Increased from 1.3
+                hard: 1.8    // Increased from 1.5
             },
             shootInterval: {
-                easy: 90,    // Shoots slower
-                normal: 60,  // Current interval
-                hard: 45     // Shoots faster
+                easy: 90,
+                normal: 60,
+                hard: 45
             },
             currentHealth: 0,
             maxHealth: 0,
             powerScale: 1,
             updatePowerScale: function(wave, difficulty) {
-                // Scale boss power based on difficulty
+                // More aggressive power scaling
                 const baseScale = {
-                    easy: 0.2,    // 20% increase per boss wave
-                    normal: 0.3,  // 30% increase per boss wave
-                    hard: 0.4     // 40% increase per boss wave
+                    easy: 0.3,    // Increased from 0.2
+                    normal: 0.4,  // Increased from 0.3
+                    hard: 0.5     // Increased from 0.4
                 }[difficulty];
                 
-                this.powerScale = 1 + (Math.floor(wave / 3) * baseScale);
-                this.maxHealth = Math.ceil(
-                    this.baseHealth[difficulty] * 
-                    Math.pow(this.healthMultiplier[difficulty], Math.floor(wave / 3))
-                );
+                // Exponential power scaling with wave number
+                const waveBonus = Math.pow(1.2, Math.floor(wave / 3));
+                this.powerScale = 1 + (Math.floor(wave / 3) * baseScale * waveBonus);
+                
+                // Health scales more aggressively with wave number
+                const healthScale = Math.pow(this.healthMultiplier[difficulty], Math.floor(wave / 3));
+                this.maxHealth = Math.ceil(this.baseHealth[difficulty] * healthScale * waveBonus);
                 this.currentHealth = this.maxHealth;
             }
         };
@@ -320,6 +322,9 @@ class Game {
         
         // Add shockwaves array for bullet clash effects
         this.shockwaves = [];
+        
+        // Detect if on computer (non-touch device)
+        this.isComputer = !('ontouchstart' in window);
         
         this.init();
     }
@@ -409,6 +414,28 @@ class Game {
                 
                 // Create initial formations
                 this.formations = this.createFormations();
+            }
+        });
+
+        // Add click handler for shooting
+        this.canvas.addEventListener('click', () => {
+            if (this.gameState === 'playing') {
+                if (this.playerPowerUps.doubleShot) {
+                    this.bullets.push(this.createPlayerBullet(
+                        this.player.x + this.player.width / 4,
+                        this.player.y
+                    ));
+                    this.bullets.push(this.createPlayerBullet(
+                        this.player.x + (this.player.width * 3) / 4,
+                        this.player.y
+                    ));
+                } else {
+                    this.bullets.push(this.createPlayerBullet(
+                        this.player.x + this.player.width / 2,
+                        this.player.y
+                    ));
+                }
+                this.sounds.shoot.play();
             }
         });
     }
@@ -590,10 +617,10 @@ class Game {
         return {
             currentX: path ? path.startX : boundedX,
             currentY: path ? path.startY : -50,
-            targetX: boundedX,  // Use bounded position
-            targetY: boundedY,  // Use bounded position
-            width: isMegaBoss ? 90 : 30,
-            height: isMegaBoss ? 90 : 30,
+            targetX: boundedX,
+            targetY: boundedY,
+            width: isMegaBoss ? 135 : 30,  // Increased from 90 to 135 for mega boss
+            height: isMegaBoss ? 135 : 30, // Increased from 90 to 135 for mega boss
             speed: this.difficulties['normal'].enemySpeed * speedScale,
             inPosition: false,
             attacking: false,
@@ -1145,27 +1172,19 @@ class Game {
     }
     
     draw() {
-        // Always draw stars even on title screen
-        this.drawStars();
-        
-        // Only draw game elements if not in title screen
-        if (this.gameState === 'title') return;
-        
         // Clear canvas
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Draw stars
-        this.ctx.fillStyle = '#fff';
-        this.stars.forEach(star => {
-            this.ctx.fillRect(star.x, star.y, star.size, star.size);
-        });
+        this.drawStars();
         
-        // Draw player ship (Galaga Fighter)
+        if (this.gameState === 'title') return;
+        
+        // Draw game elements
         this.drawPlayer();
         
-        // Draw bullets
-        this.ctx.fillStyle = '#fff';
+        // Draw bullets with trails and glow
         this.bullets.forEach(bullet => {
             // Draw trail
             if (this.bulletEffects.player.trail && bullet.trail.length) {
@@ -1199,6 +1218,7 @@ class Game {
             }
 
             // Draw main bullet
+            this.ctx.fillStyle = '#fff';
             this.ctx.fillRect(
                 bullet.x - bullet.width / 2,
                 bullet.y,
@@ -1207,173 +1227,7 @@ class Game {
             );
         });
         
-        // Draw enemies
-        this.formations.forEach(enemy => {
-            if (enemy.currentX > -50) {
-                this.drawEnemy(enemy);
-            }
-        });
-
-        // Draw power-ups with health bars
-        this.powerUps.forEach(powerUp => {
-            // Draw glowing effect
-            const glow = Math.sin(Date.now() / 200) * 0.2 + 0.8;
-            this.ctx.globalAlpha = glow;
-            this.ctx.fillStyle = powerUp.color;
-            this.ctx.beginPath();
-            this.ctx.arc(powerUp.x + 10, powerUp.y + 10, 12, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            // Draw main power-up
-            this.ctx.globalAlpha = 1;
-            this.ctx.beginPath();
-            this.ctx.arc(powerUp.x + 10, powerUp.y + 10, 10, 0, Math.PI * 2);
-            this.ctx.fill();
-
-            // Draw health bars
-            const barWidth = 20;
-            const barHeight = 3;
-            const spacing = 2;
-            
-            for (let i = 0; i < powerUp.health; i++) {
-                this.ctx.fillStyle = '#fff';
-                this.ctx.fillRect(
-                    powerUp.x + (20 - barWidth) / 2,
-                    powerUp.y - (spacing + barHeight) * (i + 1),
-                    barWidth,
-                    barHeight
-                );
-            }
-        });
-
-        // Draw shield if active
-        if (this.playerPowerUps.shield) {
-            this.ctx.strokeStyle = '#0ff';
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            this.ctx.arc(this.player.x + this.player.width / 2, 
-                         this.player.y + this.player.height / 2, 
-                         30, 0, Math.PI * 2);
-            this.ctx.stroke();
-        }
-
-        // Draw tractor beam
-        if (this.tractorBeam) {
-            this.ctx.save();
-            this.ctx.strokeStyle = `rgba(0, 255, 255, ${this.tractorBeam.alpha})`;
-            this.ctx.lineWidth = this.tractorBeam.width;
-            this.ctx.beginPath();
-            this.ctx.moveTo(this.tractorBeam.x, this.tractorBeam.y);
-            this.ctx.lineTo(this.tractorBeam.x, this.tractorBeam.y + this.tractorBeam.height);
-            this.ctx.stroke();
-            
-            // Draw zigzag pattern
-            this.ctx.beginPath();
-            let y = this.tractorBeam.y;
-            const width = 15;
-            while (y < this.tractorBeam.y + this.tractorBeam.height) {
-                this.ctx.moveTo(this.tractorBeam.x - width, y);
-                this.ctx.lineTo(this.tractorBeam.x + width, y + 10);
-                y += 20;
-            }
-            this.ctx.strokeStyle = `rgba(255, 255, 255, ${this.tractorBeam.alpha * 0.5})`;
-            this.ctx.stroke();
-            this.ctx.restore();
-        }
-
-        // Draw death animations with simple flash effect
-        this.deathAnimations.forEach(anim => {
-            this.ctx.save();
-            const alpha = 1 - (anim.frame / anim.maxFrames);
-            this.ctx.globalAlpha = alpha;
-            
-            // Draw simple flash
-            this.ctx.fillStyle = '#fff';  // White flash
-            this.ctx.beginPath();
-            this.ctx.arc(anim.x, anim.y, 15, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            this.ctx.restore();
-            
-            // Update animation frame
-            if (anim.timer % 2 === 0) {
-                anim.frame++;
-            }
-            anim.timer++;
-        });
-
-        // Filter out completed animations
-        this.deathAnimations = this.deathAnimations.filter(anim => anim.frame < anim.maxFrames);
-
-        // Draw attack indicators
-        this.ctx.save();
-        this.attackIndicators.forEach(indicator => {
-            this.ctx.strokeStyle = `rgba(255, 0, 0, ${indicator.alpha})`;
-            this.ctx.setLineDash([5, 5]);
-            this.ctx.beginPath();
-            this.ctx.moveTo(indicator.startX, indicator.startY);
-            this.ctx.lineTo(indicator.endX, indicator.endY);
-            this.ctx.stroke();
-            
-            // Draw arrow at end
-            this.ctx.save();
-            this.ctx.translate(indicator.endX, indicator.endY);
-            this.ctx.rotate(Math.atan2(indicator.endY - indicator.startY, indicator.endX - indicator.startX));
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, 0);
-            this.ctx.lineTo(-10, -5);
-            this.ctx.lineTo(-10, 5);
-            this.ctx.closePath();
-            this.ctx.fillStyle = `rgba(255, 0, 0, ${indicator.alpha})`;
-            this.ctx.fill();
-            this.ctx.restore();
-        });
-        this.ctx.restore();
-
-        // Draw wave transition
-        if (this.waveTransition.active) {
-            this.ctx.save();
-            this.ctx.fillStyle = `rgba(0, 0, 0, 0.7)`;
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            
-            this.ctx.font = '24px "Press Start 2P"';
-            this.ctx.fillStyle = '#fff';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText(this.waveTransition.text, this.canvas.width / 2, this.canvas.height / 2);
-            
-            // Draw wave details
-            this.ctx.font = '12px "Press Start 2P"';
-            const config = this.waveConfig.getConfig(Math.min(this.wave, 5));
-            this.ctx.fillText(`ENEMIES: ${config.totalEnemies}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
-            this.ctx.fillText(`SPEED: ${config.speedMultiplier.toFixed(1)}x`, this.canvas.width / 2, this.canvas.height / 2 + 60);
-            this.ctx.fillText(`BOSSES: ${config.bossCount}`, this.canvas.width / 2, this.canvas.height / 2 + 80);
-            
-            this.ctx.restore();
-        }
-
-        // Draw wave completion effects
-        this.drawWaveCompletion();
-
-        // Draw current wave number
-        this.ctx.font = '8px "Press Start 2P"';
-        this.ctx.fillStyle = '#fff';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(`WAVE ${this.wave}`, this.canvas.width / 2, 20);
-
-        // Draw power-up collection effects
-        this.powerUpEffects.forEach(effect => {
-            this.ctx.save();
-            this.ctx.globalAlpha = effect.alpha;
-            this.ctx.fillStyle = effect.color;
-            this.ctx.font = '16px "Press Start 2P"';
-            this.ctx.textAlign = 'center';
-            this.ctx.translate(this.canvas.width/2, effect.y);
-            this.ctx.scale(effect.scale, effect.scale);
-            this.ctx.fillText(effect.message, 0, 0);
-            this.ctx.restore();
-        });
-
-        // Draw enhanced enemy bullets
+        // Draw enemy bullets
         this.enemyBullets.forEach(bullet => {
             // Add warning trail effect
             this.ctx.save();
@@ -1389,7 +1243,7 @@ class Game {
             // Draw glow effect
             this.ctx.save();
             this.ctx.shadowColor = bullet.color;
-            this.ctx.shadowBlur = 15;  // Increased from 8
+            this.ctx.shadowBlur = 15;
             this.ctx.beginPath();
             this.ctx.arc(bullet.x, bullet.y, bullet.width, 0, Math.PI * 2);
             this.ctx.fillStyle = bullet.color;
@@ -1402,67 +1256,13 @@ class Game {
             this.ctx.fillStyle = '#fff';
             this.ctx.fill();
         });
-
-        // Draw boss announcement
-        if (this.bossAnnouncement.active) {
-            this.ctx.save();
-            
-            // Update animation values
-            this.bossAnnouncement.timer++;
-            this.bossAnnouncement.scale = Math.min(1, this.bossAnnouncement.timer / 60);
-            this.bossAnnouncement.alpha = Math.min(1, this.bossAnnouncement.timer / 30);
-            
-            if (this.bossAnnouncement.timer >= this.bossAnnouncement.duration) {
-                this.bossAnnouncement.active = false;
-            }
-            
-            // Draw warning background
-            const flash = Math.sin(this.bossAnnouncement.timer / 10) * 0.3 + 0.7;
-            this.ctx.fillStyle = `rgba(255, 0, 0, ${0.3 * flash * this.bossAnnouncement.alpha})`;
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            
-            // Draw warning text
-            this.ctx.globalAlpha = this.bossAnnouncement.alpha;
-            this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
-            this.ctx.scale(this.bossAnnouncement.scale, this.bossAnnouncement.scale);
-            
-            this.ctx.font = '24px "Press Start 2P"';
-            this.ctx.fillStyle = '#f00';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText('WARNING!', 0, -20);
-            
-            this.ctx.font = '16px "Press Start 2P"';
-            this.ctx.fillText(`BOSS WAVE ${this.wave}`, 0, 20);
-            this.ctx.fillText(`${Math.floor(this.wave / 3)} BOSS${this.wave > 3 ? 'ES' : ''}`, 0, 50);
-            
-            this.ctx.restore();
-        }
-
-        // Draw vertical boss health bar on left side, with additional conditions
-        const bossExists = this.formations.some(enemy => 
-            enemy.isMegaBoss && enemy.currentX > -50
-        );
         
-        if (this.bossConfig.maxHealth > 0 && this.gameState === 'playing' && bossExists) {
-            const barWidth = 20;
-            const barHeight = 200;
-            const barX = 30;
-            const barY = (this.canvas.height - barHeight) / 2;
-
-            // Background
-            this.ctx.fillStyle = '#400';
-            this.ctx.fillRect(barX, barY, barWidth, barHeight);
-
-            // Health bar
-            const healthPercent = this.bossConfig.currentHealth / this.bossConfig.maxHealth;
-            const currentHeight = barHeight * healthPercent;
-            this.ctx.fillStyle = `rgb(${255 * (1 - healthPercent)}, ${255 * healthPercent}, 0)`;
-            this.ctx.fillRect(barX, barY + (barHeight - currentHeight), barWidth, currentHeight);
-
-            // Border
-            this.ctx.strokeStyle = '#fff';
-            this.ctx.strokeRect(barX, barY, barWidth, barHeight);
-        }
+        // Draw enemies
+        this.formations.forEach(enemy => {
+            if (enemy.currentX > -50) {
+                this.drawEnemy(enemy);
+            }
+        });
 
         // Draw target indicators
         this.targetIndicators.forEach(indicator => {
@@ -1496,6 +1296,30 @@ class Game {
             this.ctx.restore();
         });
 
+        // Draw death animations with simple flash effect
+        this.deathAnimations.forEach(anim => {
+            this.ctx.save();
+            const alpha = 1 - (anim.frame / anim.maxFrames);
+            this.ctx.globalAlpha = alpha;
+            
+            // Draw simple flash
+            this.ctx.fillStyle = '#fff';  // White flash
+            this.ctx.beginPath();
+            this.ctx.arc(anim.x, anim.y, 15, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            this.ctx.restore();
+            
+            // Update animation frame
+            if (anim.timer % 2 === 0) {
+                anim.frame++;
+            }
+            anim.timer++;
+        });
+
+        // Filter out completed animations
+        this.deathAnimations = this.deathAnimations.filter(anim => anim.frame < anim.maxFrames);
+
         // Draw explosions
         this.explosions.forEach(particle => {
             this.ctx.save();
@@ -1506,106 +1330,6 @@ class Game {
             this.ctx.restore();
         });
 
-        if (this.debugMode) {
-            // Draw player hitbox
-            this.drawHitbox(
-                this.player.x + this.player.width / 2,
-                this.player.y + this.player.height / 2,
-                this.player.width,
-                this.player.height,
-                '#0f0'
-            );
-
-            // Draw bullet hitboxes
-            this.bullets.forEach(bullet => {
-                this.drawHitbox(
-                    bullet.x,
-                    bullet.y,
-                    bullet.width,
-                    bullet.height,
-                    '#ff0'
-                );
-            });
-
-            // Draw enemy hitboxes
-            this.formations.forEach(enemy => {
-                if (enemy.currentX > -50) {
-                    const enemyType = enemy.isMegaBoss ? 'MEGA BOSS' :
-                                     enemy.type === this.enemyTypes.BOSS ? 'BOSS' :
-                                     enemy.type === this.enemyTypes.ESCORT ? 'ESCORT' :
-                                     'GRUNT';
-                    
-                    const healthLabel = `${enemyType} (${enemy.health})`;
-                    
-                    this.drawHitbox(
-                        enemy.currentX + enemy.width / 2,
-                        enemy.currentY + enemy.height / 2,
-                        enemy.width * 0.8,
-                        enemy.height * 0.8,
-                        enemy.attacking ? '#f00' : '#f0f',
-                        healthLabel
-                    );
-                }
-            });
-
-            // Draw enhanced debug info panel
-            this.ctx.fillStyle = 'rgba(0,0,0,0.7)';  // Semi-transparent background
-            this.ctx.fillRect(this.canvas.width - 150, this.canvas.height - 120, 140, 110);
-            
-            this.ctx.fillStyle = '#fff';
-            this.ctx.font = '6px "Press Start 2P"';
-            this.ctx.textAlign = 'right';
-            
-            const rightEdge = this.canvas.width - 10;
-            const bottomStart = this.canvas.height - 110;
-            const lineHeight = 10;
-            let line = 0;
-            
-            // Title with toggle key
-            this.ctx.fillStyle = '#0f0';
-            this.ctx.fillText('DEBUG MODE (H)', rightEdge, bottomStart + lineHeight * line++);
-            
-            // Wave and pattern info
-            this.ctx.fillStyle = '#ff0';
-            const currentPattern = this.wave % 3 === 0 ? 'BOSS WAVE' : 
-                ['ARROW', 'SPIRAL', 'FORTRESS'][this.wave % 3];
-            this.ctx.fillText(`WAVE ${this.wave} - ${currentPattern}`, rightEdge, bottomStart + lineHeight * line++);
-            
-            // Enemy counts and types
-            const enemiesLeft = this.formations.filter(enemy => 
-                enemy.currentX > -50 && enemy.currentY < this.canvas.height
-            ).length;
-            const attackingCount = this.formations.filter(e => e.attacking).length;
-            this.ctx.fillStyle = '#f88';
-            this.ctx.fillText(`ENEMIES: ${enemiesLeft} (${attackingCount} ATTACKING)`, rightEdge, bottomStart + lineHeight * line++);
-            
-            // Enemy type breakdown
-            const bosses = this.formations.filter(e => e.type === this.enemyTypes.BOSS && e.currentX > -50).length;
-            const escorts = this.formations.filter(e => e.type === this.enemyTypes.ESCORT && e.currentX > -50).length;
-            const grunts = this.formations.filter(e => e.type === this.enemyTypes.GRUNT && e.currentX > -50).length;
-            this.ctx.fillStyle = '#8f8';
-            this.ctx.fillText(`BOSS:${bosses} ESCORT:${escorts} GRUNT:${grunts}`, rightEdge, bottomStart + lineHeight * line++);
-            
-            // Attack stats
-            this.ctx.fillStyle = '#8ff';
-            this.ctx.fillText(`ATTACK CHANCE: ${Math.round((0.7 + (this.wave * 0.1)) * 100)}%`, rightEdge, bottomStart + lineHeight * line++);
-            this.ctx.fillText(`MAX ATTACKERS: ${Math.min(4, Math.floor(1 + this.wave/2))}`, rightEdge, bottomStart + lineHeight * line++);
-            
-            // Entity counts
-            this.ctx.fillStyle = '#f8f';
-            this.ctx.fillText(`BULLETS: ${this.bullets.length}/${this.enemyBullets.length}`, rightEdge, bottomStart + lineHeight * line++);
-            this.ctx.fillText(`EFFECTS: ${this.explosions.length}/${this.shockwaves.length}`, rightEdge, bottomStart + lineHeight * line++);
-            
-            // Player position and state
-            this.ctx.fillStyle = '#0ff';
-            this.ctx.fillText(`POS: ${Math.round(this.player.x)},${Math.round(this.player.y)}`, rightEdge, bottomStart + lineHeight * line++);
-            const powerups = Object.entries(this.playerPowerUps)
-                .filter(([_, active]) => active)
-                .map(([name]) => name.charAt(0))
-                .join('');
-            this.ctx.fillText(`POWERUPS: ${powerups || 'NONE'}`, rightEdge, bottomStart + lineHeight * line++);
-        }
-        
         // Draw shockwaves
         this.shockwaves.forEach(wave => {
             this.ctx.save();
@@ -1634,6 +1358,141 @@ class Game {
             
             this.ctx.restore();
         });
+
+        // Draw debug info if enabled
+        if (this.debugMode) {
+            // Draw player hitbox
+            this.drawHitbox(
+                this.player.x + this.player.width / 2,
+                this.player.y + this.player.height / 2,
+                this.player.width,
+                this.player.height,
+                '#0f0'
+            );
+
+            // Draw bullet hitboxes
+            this.bullets.forEach(bullet => {
+                this.drawHitbox(
+                    bullet.x,
+                    bullet.y,
+                    bullet.width,
+                    bullet.height,
+                    '#ff0'
+                );
+            });
+
+            // Draw enemy hitboxes with labels
+            this.formations.forEach(enemy => {
+                if (enemy.currentX > -50) {
+                    const enemyType = enemy.isMegaBoss ? 'MEGA BOSS' :
+                                     enemy.type === this.enemyTypes.BOSS ? 'BOSS' :
+                                     enemy.type === this.enemyTypes.ESCORT ? 'ESCORT' :
+                                     'GRUNT';
+                    
+                    const healthLabel = `${enemyType} (${enemy.health})`;
+                    
+                    this.drawHitbox(
+                        enemy.currentX + enemy.width / 2,
+                        enemy.currentY + enemy.height / 2,
+                        enemy.width * 0.8,
+                        enemy.height * 0.8,
+                        enemy.attacking ? '#f00' : '#f0f',
+                        healthLabel
+                    );
+                }
+            });
+
+            // Draw debug info in bottom right
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '6px "Press Start 2P"';
+            this.ctx.textAlign = 'right';
+            
+            const rightEdge = this.canvas.width - 10;
+            const bottomStart = this.canvas.height - 60;
+            const lineHeight = 8;
+            
+            this.ctx.fillText('DEBUG MODE (H)', rightEdge, bottomStart);
+            
+            // Add current formation pattern
+            const currentPattern = this.wave % 3 === 0 ? 'BOSS WAVE' : 
+                ['ARROW', 'SPIRAL', 'FORTRESS'][this.wave % 3];
+            this.ctx.fillText(`PATTERN: ${currentPattern}`, rightEdge, bottomStart + lineHeight);
+            
+            // Add enemies left counter
+            const enemiesLeft = this.formations.filter(enemy => 
+                enemy.currentX > -50 && enemy.currentY < this.canvas.height
+            ).length;
+            this.ctx.fillText(`ENEMIES: ${enemiesLeft}`, rightEdge, bottomStart + lineHeight * 2);
+            
+            this.ctx.fillText(`ENTITIES: ${this.formations.length + this.bullets.length + this.powerUps.length}`, 
+                rightEdge, bottomStart + lineHeight * 3);
+            
+            // Add enemy type breakdown
+            const bosses = this.formations.filter(e => e.type === this.enemyTypes.BOSS && e.currentX > -50).length;
+            const escorts = this.formations.filter(e => e.type === this.enemyTypes.ESCORT && e.currentX > -50).length;
+            const grunts = this.formations.filter(e => e.type === this.enemyTypes.GRUNT && e.currentX > -50).length;
+            this.ctx.fillText(`B:${bosses} E:${escorts} G:${grunts}`, rightEdge, bottomStart + lineHeight * 4);
+            
+            this.ctx.fillText(`POS: ${Math.round(this.player.x)},${Math.round(this.player.y)}`, 
+                rightEdge, bottomStart + lineHeight * 5);
+
+            // Draw escort charging trajectories
+            this.formations.forEach(enemy => {
+                if (enemy.type === this.enemyTypes.ESCORT && enemy.attacking) {
+                    // Draw predicted path
+                    this.ctx.save();
+                    this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                    this.ctx.setLineDash([5, 5]);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(enemy.currentX + enemy.width/2, enemy.currentY + enemy.height/2);
+                    this.ctx.lineTo(enemy.targetX, enemy.targetY);
+                    this.ctx.stroke();
+                    
+                    // Draw target point
+                    this.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(enemy.targetX, enemy.targetY, 5, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.restore();
+                }
+            });
+        }
+
+        // Draw vertical boss health bar on left side
+        if (this.bossConfig.maxHealth > 0 && this.gameState === 'playing') {
+            const bossExists = this.formations.some(enemy => enemy.isMegaBoss);
+            
+            if (bossExists) {
+                const barWidth = 20;
+                const barHeight = 200;
+                const barX = 30;
+                const barY = (this.canvas.height - barHeight) / 2;
+
+                // Background
+                this.ctx.fillStyle = '#400';
+                this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                // Health bar
+                const healthPercent = this.bossConfig.currentHealth / this.bossConfig.maxHealth;
+                const currentHeight = barHeight * healthPercent;
+                this.ctx.fillStyle = `rgb(${255 * (1 - healthPercent)}, ${255 * healthPercent}, 0)`;
+                this.ctx.fillRect(barX, barY + (barHeight - currentHeight), barWidth, currentHeight);
+
+                // Border
+                this.ctx.strokeStyle = '#fff';
+                this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+            }
+        }
+
+        // Draw wave count in top center
+        if (this.gameState === 'playing') {
+            this.ctx.save();
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '8px "Press Start 2P"';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(`WAVE ${this.wave}`, this.canvas.width / 2, 20);
+            this.ctx.restore();
+        }
     }
     
     drawPlayer() {
@@ -1687,89 +1546,113 @@ class Game {
 
     drawBossEnemy(frame) {
         // Aircraft carrier/starship design facing down
-        const scale = this.isMegaBoss ? 1.5 : 1;
+        const scale = this.isMegaBoss ? 4.5 : 1;  // Increased mega boss scale to 4.5x
         
-        // Main hull (dark gray)
+        // Main hull (gradient effect)
+        const gradient = this.ctx.createLinearGradient(0, -16 * scale, 0, 16 * scale);
+        gradient.addColorStop(0, '#555');
+        gradient.addColorStop(1, '#333');
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(-10 * scale, -16 * scale, 20 * scale, 32 * scale);
+        
+        // Armor plating details
         this.ctx.fillStyle = '#444';
-        this.ctx.fillRect(-8 * scale, -16 * scale, 16 * scale, 32 * scale);  // Long vertical body
+        for (let i = -12; i <= 12; i += 4) {
+            this.ctx.fillRect(i * scale, -14 * scale, 2 * scale, 28 * scale);
+        }
         
-        // Command tower (lighter gray)
+        // Command tower with windows
         this.ctx.fillStyle = '#666';
-        this.ctx.fillRect(-4 * scale, -8 * scale, 8 * scale, 12 * scale);    // Bridge structure
+        this.ctx.fillRect(-6 * scale, -10 * scale, 12 * scale, 14 * scale);
+        this.ctx.fillStyle = '#88f';
+        this.ctx.fillRect(-4 * scale, -8 * scale, 8 * scale, 2 * scale);
         
-        // Flight deck details (dark red)
+        // Flight deck with detailed markings
         this.ctx.fillStyle = '#800';
-        this.ctx.fillRect(-12 * scale, 0 * scale, 24 * scale, 16 * scale);   // Wide landing deck
+        this.ctx.fillRect(-14 * scale, 0 * scale, 28 * scale, 16 * scale);
         
-        // Runway markings (yellow)
-        this.ctx.fillStyle = '#ff0';
-        this.ctx.fillRect(-10 * scale, 2 * scale, 4 * scale, 2 * scale);     // Left marking
-        this.ctx.fillRect(6 * scale, 2 * scale, 4 * scale, 2 * scale);       // Right marking
-        this.ctx.fillRect(-10 * scale, 8 * scale, 4 * scale, 2 * scale);     // Left marking
-        this.ctx.fillRect(6 * scale, 8 * scale, 4 * scale, 2 * scale);       // Right marking
-        this.ctx.fillRect(-10 * scale, 14 * scale, 4 * scale, 2 * scale);    // Left marking
-        this.ctx.fillRect(6 * scale, 14 * scale, 4 * scale, 2 * scale);      // Right marking
+        // Runway lights (blinking)
+        this.ctx.fillStyle = frame % 4 < 2 ? '#ff0' : '#880';
+        for (let i = -12; i <= 12; i += 4) {
+            this.ctx.fillRect(i * scale, 2 * scale, 2 * scale, 2 * scale);
+            this.ctx.fillRect(i * scale, 8 * scale, 2 * scale, 2 * scale);
+            this.ctx.fillRect(i * scale, 14 * scale, 2 * scale, 2 * scale);
+        }
         
-        // Side cannons (dark blue)
+        // Side cannons with energy glow
         this.ctx.fillStyle = '#006';
-        this.ctx.fillRect(-14 * scale, -4 * scale, 4 * scale, 8 * scale);    // Left cannon
-        this.ctx.fillRect(10 * scale, -4 * scale, 4 * scale, 8 * scale);     // Right cannon
+        this.ctx.fillRect(-16 * scale, -6 * scale, 6 * scale, 12 * scale);
+        this.ctx.fillRect(10 * scale, -6 * scale, 6 * scale, 12 * scale);
         
-        // Cannon tips (light blue)
-        this.ctx.fillStyle = '#00f';
-        this.ctx.fillRect(-14 * scale, -2 * scale, 4 * scale, 4 * scale);    // Left tip
-        this.ctx.fillRect(10 * scale, -2 * scale, 4 * scale, 4 * scale);     // Right tip
+        // Energy glow on cannon tips (pulsing)
+        const glowIntensity = Math.sin(Date.now() / 200) * 0.5 + 0.5;
+        this.ctx.fillStyle = `rgba(0, 128, 255, ${glowIntensity})`;
+        this.ctx.fillRect(-16 * scale, -2 * scale, 6 * scale, 4 * scale);
+        this.ctx.fillRect(10 * scale, -2 * scale, 6 * scale, 4 * scale);
         
-        // Engine glow (pulsing)
-        const glowSize = Math.sin(Date.now() / 200) * 2;
-        this.ctx.fillStyle = frame % 2 ? '#f70' : '#ff0';
-        this.ctx.fillRect(-6 * scale, -18 * scale, 12 * scale, 4 * scale);   // Main engine
-        this.ctx.fillRect(-10 * scale, -16 * scale, 4 * scale, 2 * scale);   // Left thruster
-        this.ctx.fillRect(6 * scale, -16 * scale, 4 * scale, 2 * scale);     // Right thruster
+        // Engine exhausts with animated glow
+        const engineGlow = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+        const engineColor = frame % 2 ? 
+            `rgba(255, 128, 0, ${engineGlow})` : 
+            `rgba(255, 200, 0, ${engineGlow})`;
+        this.ctx.fillStyle = engineColor;
+        this.ctx.fillRect(-8 * scale, -18 * scale, 16 * scale, 4 * scale);
+        this.ctx.fillRect(-12 * scale, -16 * scale, 4 * scale, 2 * scale);
+        this.ctx.fillRect(8 * scale, -16 * scale, 4 * scale, 2 * scale);
     }
 
     drawEscortEnemy(frame) {
-        // Base ship model facing down (green/white/yellow palette)
+        // Escort ship model facing down (green/white theme)
         // Main body
-        this.ctx.fillStyle = '#0a0';  // Green
-        this.ctx.fillRect(-1, 8, 2, 4);   // Bottom thin part
+        this.ctx.fillStyle = '#0c0';
+        this.ctx.fillRect(-1, 8, 2, 4);    // Bottom thin part
         this.ctx.fillRect(-3, -8, 6, 16);  // Center body
         this.ctx.fillRect(-6, -8, 12, 8);  // Wide top
         
         // White accents
         this.ctx.fillStyle = '#fff';
-        this.ctx.fillRect(-4, -8, 2, 12);  // Left white stripe
-        this.ctx.fillRect(2, -8, 2, 12);   // Right white stripe
+        this.ctx.fillRect(-4, -8, 2, 12);  // Left stripe
+        this.ctx.fillRect(2, -8, 2, 12);   // Right stripe
         this.ctx.fillRect(-8, -8, 2, 4);   // Left wing tip
         this.ctx.fillRect(6, -8, 2, 4);    // Right wing tip
         
-        // Yellow details
-        this.ctx.fillStyle = '#ff0';
-        this.ctx.fillRect(-2, 4, 4, 4);    // Bottom yellow section
-        this.ctx.fillRect(-6, -8, 2, 4);   // Left yellow wing
-        this.ctx.fillRect(4, -8, 2, 4);    // Right yellow wing
+        // Energy details (animated)
+        const glowIntensity = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+        this.ctx.fillStyle = frame % 2 ? '#0f0' : '#0a0';
+        this.ctx.fillRect(-2, 4, 4, 4);    // Bottom section
+        this.ctx.fillRect(-6, -8, 2, 4);   // Left wing
+        this.ctx.fillRect(4, -8, 2, 4);    // Right wing
+        
+        // Engine glow
+        this.ctx.fillStyle = `rgba(0, 255, 0, ${glowIntensity})`;
+        this.ctx.fillRect(-2, -12, 4, 4);  // Engine exhaust at top
     }
 
     drawGruntEnemy(frame) {
-        // Base ship model facing down (blue/cyan/purple palette)
+        // Grunt ship model facing down (blue/cyan theme)
         // Main body
-        this.ctx.fillStyle = '#00f';  // Blue
+        this.ctx.fillStyle = '#00f';
         this.ctx.fillRect(-1, 8, 2, 4);    // Bottom thin part
         this.ctx.fillRect(-3, -8, 6, 16);  // Center body
         this.ctx.fillRect(-6, -8, 12, 8);  // Wide top
         
         // Cyan accents
         this.ctx.fillStyle = '#0ff';
-        this.ctx.fillRect(-4, -8, 2, 12);  // Left cyan stripe
-        this.ctx.fillRect(2, -8, 2, 12);   // Right cyan stripe
+        this.ctx.fillRect(-4, -8, 2, 12);  // Left stripe
+        this.ctx.fillRect(2, -8, 2, 12);   // Right stripe
         this.ctx.fillRect(-8, -8, 2, 4);   // Left wing tip
         this.ctx.fillRect(6, -8, 2, 4);    // Right wing tip
         
-        // Purple details
-        this.ctx.fillStyle = '#a0f';
-        this.ctx.fillRect(-2, 4, 4, 4);    // Bottom purple section
-        this.ctx.fillRect(-6, -8, 2, 4);   // Left purple wing
-        this.ctx.fillRect(4, -8, 2, 4);    // Right purple wing
+        // Energy details (animated)
+        const glowIntensity = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+        this.ctx.fillStyle = frame % 2 ? '#00f' : '#008';
+        this.ctx.fillRect(-2, 4, 4, 4);    // Bottom section
+        this.ctx.fillRect(-6, -8, 2, 4);   // Left wing
+        this.ctx.fillRect(4, -8, 2, 4);    // Right wing
+        
+        // Engine glow
+        this.ctx.fillStyle = `rgba(0, 128, 255, ${glowIntensity})`;
+        this.ctx.fillRect(-2, -12, 4, 4);  // Engine exhaust at top
     }
     
     gameLoop() {
