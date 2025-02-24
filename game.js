@@ -48,7 +48,16 @@ class Game {
         this.powerUpTypes = {
             DOUBLE_SHOT: 0,
             SPEED_UP: 1,
-            SHIELD: 2
+            SHIELD: 2,
+            EXTRA_LIFE: 3,
+            PERMANENT_SPEED: 4,
+            PERMANENT_SHOT: 5,
+            BULLET_SPEED: 6,
+            SMALL_SHIP: 7,
+            DRONE: 8,
+            PERMANENT_BULLET: 9,
+            PERMANENT_SIZE: 10,
+            PERMANENT_DRONE: 11
         };
         this.playerPowerUps = {
             doubleShot: false,
@@ -192,9 +201,24 @@ class Game {
         
         // Add enemy shooting properties
         this.enemyShootingConfig = {
-            BOSS: { chance: 0.015, bulletSpeed: 3, color: '#f00' },    // Reduced from 0.03
-            ESCORT: { chance: 0.005, bulletSpeed: 2.5, color: '#f80' }, // Reduced from 0.01
-            GRUNT: { chance: 0.002, bulletSpeed: 2, color: '#ff0' }     // Reduced from 0.005
+            BOSS: { 
+                chance: 0.015, 
+                bulletSpeed: 3, 
+                color: '#f00',
+                trackingChance: 0.3
+            },
+            ESCORT: { 
+                chance: 0.01, 
+                bulletSpeed: 2.5, 
+                color: '#f80',
+                trackingChance: 0.2
+            },
+            GRUNT: { 
+                chance: 0.005, 
+                bulletSpeed: 2, 
+                color: '#ff0',
+                trackingChance: 0.1
+            }
         };
         
         // Add bullet effects configuration
@@ -549,7 +573,7 @@ class Game {
                         controlY: startY - 30
                     }
                 ));
-            },  // <-- Added missing comma here
+            },
             
             BOSS_WAVE: () => {
                 const centerX = this.canvas.width/2;
@@ -588,6 +612,143 @@ class Game {
 
                 // Update boss power scaling
                 this.bossConfig.updatePowerScale(this.wave, 'normal');
+            },
+            
+            DIAMOND: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = Math.min(80, maxY);
+                const spacing = 40;
+                
+                // Create diamond shape
+                for (let layer = 0; layer < 4; layer++) {
+                    const width = layer < 2 ? layer + 1 : 4 - layer;
+                    for (let i = 0; i < width; i++) {
+                        const x = centerX + (i - (width-1)/2) * spacing;
+                        const y = startY + layer * spacing;
+                        formations.push(this.createEnemy(x, y,
+                            layer === 0 ? this.enemyTypes.BOSS :
+                            layer === 1 ? this.enemyTypes.ESCORT :
+                            this.enemyTypes.GRUNT,
+                            {
+                                startX: x < centerX ? -50 : this.canvas.width + 50,
+                                startY: -50,
+                                controlX: x,
+                                controlY: y - 30
+                            }
+                        ));
+                    }
+                }
+            },
+            
+            CROSS: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = Math.min(80, maxY);
+                const spacing = 35;
+                
+                // Create cross shape
+                for (let i = -2; i <= 2; i++) {
+                    // Horizontal line
+                    formations.push(this.createEnemy(
+                        centerX + i * spacing,
+                        startY,
+                        i === 0 ? this.enemyTypes.BOSS :
+                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
+                        this.enemyTypes.GRUNT,
+                        {
+                            startX: centerX + i * spacing,
+                            startY: -50,
+                            controlX: centerX + i * spacing,
+                            controlY: startY - 30
+                        }
+                    ));
+                    
+                    // Vertical line (skip center to avoid overlap)
+                    if (i !== 0) {
+                        formations.push(this.createEnemy(
+                            centerX,
+                            startY + i * spacing,
+                            Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
+                            this.enemyTypes.GRUNT,
+                            {
+                                startX: centerX,
+                                startY: -50,
+                                controlX: centerX,
+                                controlY: startY + i * spacing - 30
+                            }
+                        ));
+                    }
+                }
+            },
+            
+            WINGS: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = Math.min(80, maxY);
+                const spacing = 35;
+                
+                // Boss in center
+                formations.push(this.createEnemy(centerX, startY,
+                    this.enemyTypes.BOSS,
+                    {
+                        startX: centerX,
+                        startY: -50,
+                        controlX: centerX,
+                        controlY: startY - 30
+                    }
+                ));
+                
+                // Create wing shapes on both sides
+                for (let side = -1; side <= 1; side += 2) {
+                    for (let row = 0; row < 3; row++) {
+                        for (let col = 1; col <= 3-row; col++) {
+                            formations.push(this.createEnemy(
+                                centerX + (col * spacing * side),
+                                startY + (row * spacing),
+                                row === 0 ? this.enemyTypes.ESCORT : this.enemyTypes.GRUNT,
+                                {
+                                    startX: side < 0 ? -50 : this.canvas.width + 50,
+                                    startY: -50,
+                                    controlX: centerX + (col * spacing * side),
+                                    controlY: startY + (row * spacing) - 30
+                                }
+                            ));
+                        }
+                    }
+                }
+            },
+            
+            HEXAGON: (count) => {
+                const centerX = this.canvas.width/2;
+                const startY = Math.min(80, maxY);
+                const radius = 60;
+                const sides = 6;
+                
+                // Boss in center
+                formations.push(this.createEnemy(centerX, startY,
+                    this.enemyTypes.BOSS,
+                    {
+                        startX: centerX,
+                        startY: -50,
+                        controlX: centerX,
+                        controlY: startY - 30
+                    }
+                ));
+                
+                // Create hexagon points
+                for (let i = 0; i < sides; i++) {
+                    const angle = (i / sides) * Math.PI * 2;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = startY + Math.sin(angle) * radius;
+                    
+                    formations.push(this.createEnemy(x, y,
+                        i % 2 === 0 ? this.enemyTypes.ESCORT : this.enemyTypes.GRUNT,
+                        {
+                            startX: x < centerX ? -50 : this.canvas.width + 50,
+                            startY: -50,
+                            controlX: x,
+                            controlY: y - 30
+                        }
+                    ));
+                }
             }
         };
 
@@ -614,7 +775,7 @@ class Game {
         const speedScale = 1 + (this.wave * 0.05); // 5% faster each wave
         const healthScale = 1 + (Math.floor(this.wave / 3) * 0.2); // 20% more health every 3 waves
 
-        return {
+        const enemy = {
             currentX: path ? path.startX : boundedX,
             currentY: path ? path.startY : -50,
             targetX: boundedX,
@@ -638,6 +799,15 @@ class Game {
                 this.bossConfig.maxHealth : 
                 Math.ceil(type === this.enemyTypes.ESCORT ? 2 * healthScale : 1 * healthScale)
         };
+
+        if (type === this.enemyTypes.BOSS) {
+            enemy.currentPattern = 0;
+            enemy.patternTimer = 0;
+            enemy.lastShot = 0;
+            enemy.burstCount = 0;
+        }
+
+        return enemy;
     }
     
     createDeathAnimation(x, y, type) {
@@ -810,14 +980,29 @@ class Game {
                 ].chance;
                 
                 if (Math.random() < shootChance) {
+                    // Calculate angle towards player with random spread
+                    const dx = this.player.x - enemy.currentX;
+                    const dy = this.player.y - enemy.currentY;
+                    const baseAngle = Math.atan2(dy, dx);
+                    
+                    // Add random spread based on enemy type
+                    const spread = enemy.type === this.enemyTypes.BOSS ? Math.PI/6 :
+                                  enemy.type === this.enemyTypes.ESCORT ? Math.PI/4 :
+                                  Math.PI/3;
+                    
+                    const finalAngle = baseAngle + (Math.random() - 0.5) * spread;
+                    const bulletSpeed = this.enemyShootingConfig[
+                        Object.keys(this.enemyTypes)[enemy.type]
+                    ].bulletSpeed;
+                    
                     this.enemyBullets.push({
                         x: enemy.currentX + enemy.width / 2,
                         y: enemy.currentY + enemy.height,
                         width: 4,
                         height: 8,
-                        speed: this.enemyShootingConfig[
-                            Object.keys(this.enemyTypes)[enemy.type]
-                        ].bulletSpeed,
+                        speed: bulletSpeed,
+                        dx: Math.cos(finalAngle) * bulletSpeed,
+                        dy: Math.sin(finalAngle) * bulletSpeed,
                         color: this.enemyShootingConfig[
                             Object.keys(this.enemyTypes)[enemy.type]
                         ].color
@@ -1153,6 +1338,28 @@ class Game {
             wave.speed *= 0.95;  // Slow down expansion
             wave.alpha -= 0.03;  // Fade out
             return wave.alpha > 0;
+        });
+
+        // Update boss shooting patterns
+        this.formations.forEach(enemy => {
+            if (enemy.type === this.enemyTypes.BOSS && enemy.inPosition) {
+                const now = Date.now();
+                const patterns = Object.values(this.bossAttackPatterns);
+                const currentPattern = patterns[enemy.currentPattern];
+                
+                if (now - enemy.lastShot >= currentPattern.cooldown) {
+                    currentPattern.execute(enemy);
+                    enemy.lastShot = now;
+                    
+                    // Change pattern periodically
+                    enemy.patternTimer += currentPattern.cooldown;
+                    if (enemy.patternTimer >= 3000) { // Change pattern every 3 seconds
+                        enemy.currentPattern = (enemy.currentPattern + 1) % patterns.length;
+                        enemy.patternTimer = 0;
+                        enemy.burstCount = 0;
+                    }
+                }
+            }
         });
     }
     
@@ -1522,6 +1729,24 @@ class Game {
         this.ctx.fillRect(4, 4, 2, 4);     // Right blue wing
         
         this.ctx.restore();
+
+        // Draw drone if active
+        if (this.playerPowerUps.drone) {
+            const droneOffset = 25;
+            const droneY = this.player.y + 5;
+            
+            // Draw left drone
+            this.ctx.save();
+            this.ctx.translate(this.player.x - droneOffset, droneY);
+            this.drawDrone();
+            this.ctx.restore();
+            
+            // Draw right drone
+            this.ctx.save();
+            this.ctx.translate(this.player.x + this.player.width + droneOffset, droneY);
+            this.drawDrone();
+            this.ctx.restore();
+        }
     }
 
     drawEnemy(enemy) {
@@ -1670,8 +1895,8 @@ class Game {
             width: 20,
             height: 20,
             speed: 1,
-            health: 3,  // All power-ups require 3 hits
-            requiresShot: true,  // All power-ups require shooting
+            health: 3,
+            requiresShot: true,
             color: type === this.powerUpTypes.DOUBLE_SHOT ? '#0ff' :
                    type === this.powerUpTypes.SPEED_UP ? '#0f0' : '#ff0'
         });
@@ -1685,18 +1910,26 @@ class Game {
         
         switch(type) {
             case this.powerUpTypes.DOUBLE_SHOT:
-                this.playerPowerUps.doubleShot = true;
-                setTimeout(() => {
-                    this.playerPowerUps.doubleShot = false;
-                    this.sounds.powerupExpire.play();
-                }, 10000);
+                if (!this.playerPowerUps.permanentShot) {
+                    this.playerPowerUps.doubleShot = true;
+                    setTimeout(() => {
+                        if (!this.playerPowerUps.permanentShot) {
+                            this.playerPowerUps.doubleShot = false;
+                            this.sounds.powerupExpire.play();
+                        }
+                    }, 10000);
+                }
                 break;
             case this.powerUpTypes.SPEED_UP:
-                this.player.speed *= 1.5;
-                setTimeout(() => {
-                    this.player.speed /= 1.5;
-                    this.sounds.powerupExpire.play();
-                }, 8000);
+                if (!this.playerPowerUps.permanentSpeed) {
+                    this.player.speed *= 1.5;
+                    setTimeout(() => {
+                        if (!this.playerPowerUps.permanentSpeed) {
+                            this.player.speed /= 1.5;
+                            this.sounds.powerupExpire.play();
+                        }
+                    }, 8000);
+                }
                 break;
             case this.powerUpTypes.SHIELD:
                 this.playerPowerUps.shield = true;
@@ -1705,6 +1938,74 @@ class Game {
                     this.sounds.powerupExpire.play();
                 }, 5000);
                 break;
+            case this.powerUpTypes.EXTRA_LIFE:
+                this.lives++;
+                document.getElementById('livesValue').textContent = this.lives;
+                break;
+            case this.powerUpTypes.PERMANENT_SPEED:
+                this.playerPowerUps.permanentSpeedStacks++;
+                this.player.speed *= 1.1; // Reduced from 1.2 to 1.1
+                break;
+            case this.powerUpTypes.PERMANENT_SHOT:
+                this.playerPowerUps.permanentShotStacks++;
+                this.playerPowerUps.doubleShot = true;
+                break;
+            case this.powerUpTypes.BULLET_SPEED:
+                if (!this.playerPowerUps.permanentBullet) {
+                    this.playerPowerUps.bulletSpeed = true;
+                    setTimeout(() => {
+                        if (!this.playerPowerUps.permanentBullet) {
+                            this.playerPowerUps.bulletSpeed = false;
+                            this.sounds.powerupExpire.play();
+                        }
+                    }, 10000);
+                }
+                break;
+            case this.powerUpTypes.SMALL_SHIP:
+                if (!this.playerPowerUps.permanentSize) {
+                    this.playerPowerUps.smallShip = true;
+                    this.player.width *= 0.7;
+                    this.player.height *= 0.7;
+                    setTimeout(() => {
+                        if (!this.playerPowerUps.permanentSize) {
+                            this.playerPowerUps.smallShip = false;
+                            this.player.width /= 0.7;
+                            this.player.height /= 0.7;
+                            this.sounds.powerupExpire.play();
+                        }
+                    }, 12000);
+                }
+                break;
+            case this.powerUpTypes.DRONE:
+                if (!this.playerPowerUps.permanentDrone) {
+                    this.playerPowerUps.drone = true;
+                    setTimeout(() => {
+                        if (!this.playerPowerUps.permanentDrone) {
+                            this.playerPowerUps.drone = false;
+                            this.sounds.powerupExpire.play();
+                        }
+                    }, 15000);
+                }
+                break;
+            case this.powerUpTypes.PERMANENT_BULLET:
+                this.playerPowerUps.permanentBulletStacks++;
+                this.playerPowerUps.bulletSpeed = true;
+                break;
+            case this.powerUpTypes.PERMANENT_SIZE:
+                this.playerPowerUps.permanentSizeStacks++;
+                this.player.width *= 0.95; // Less reduction per stack (from 0.9)
+                this.player.height *= 0.95;
+                break;
+            case this.powerUpTypes.PERMANENT_DRONE:
+                this.playerPowerUps.permanentDroneStacks = Math.min(3, this.playerPowerUps.permanentDroneStacks + 1); // Cap at 3 drones
+                this.playerPowerUps.drone = true;
+                break;
+        }
+
+        // Update power-up effect message to show stacks
+        if (type >= this.powerUpTypes.PERMANENT_SPEED) {
+            const stacks = this.getStackCount(type);
+            this.createStackEffect(type, stacks);
         }
     }
 
@@ -1899,7 +2200,6 @@ class Game {
     }
 
     startAttack(enemy) {
-        // Only allow escort enemies to attack
         if (enemy.type !== this.enemyTypes.ESCORT) return;
         
         // Increase max attackers and base them on wave
@@ -2266,6 +2566,86 @@ class Game {
             speed: 4,
             alpha: 1,
             color: '#fff'
+        });
+    }
+
+    // Add drone drawing method
+    drawDrone() {
+        // Animate drone hover
+        const hoverOffset = Math.sin(Date.now() / 200) * 2;
+        
+        // Draw drone body
+        this.ctx.fillStyle = '#0ff';
+        this.ctx.fillRect(-4, -4 + hoverOffset, 8, 8);
+        
+        // Draw core with color based on reload state
+        const reloadProgress = 1 - (this.droneCooldown / this.droneReloadTime);
+        this.ctx.fillStyle = reloadProgress >= 1 ? '#fff' : `rgba(255, 255, 255, ${reloadProgress})`;
+        this.ctx.fillRect(-2, -2 + hoverOffset, 4, 4);
+        
+        // Draw energy glow
+        this.ctx.globalAlpha = 0.5 * reloadProgress;
+        this.ctx.shadowColor = '#0ff';
+        this.ctx.shadowBlur = 10;
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0 + hoverOffset, 6, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.globalAlpha = 1;
+        this.ctx.shadowBlur = 0;
+    }
+
+    // Add new method for creating drone bullets
+    createDroneBullet(x, y, angle) {
+        const speed = this.playerPowerUps.bulletSpeed ? 10 : 7;
+        return {
+            x: x,
+            y: y,
+            width: this.bulletEffects.player.width * 1.2,
+            height: this.bulletEffects.player.height * 1.2,
+            speed: speed,
+            dx: Math.sin(angle) * speed,  // Add horizontal movement
+            dy: -Math.cos(angle) * speed, // Maintain upward movement
+            trail: [],
+            color: '#0ff',  // Cyan color to match drones
+            visualWidth: this.bulletEffects.player.width,
+            visualHeight: this.bulletEffects.player.height
+        };
+    }
+
+    // Add method to get stack count for a power-up type
+    getStackCount(type) {
+        switch(type) {
+            case this.powerUpTypes.PERMANENT_SPEED:
+                return this.playerPowerUps.permanentSpeedStacks;
+            case this.powerUpTypes.PERMANENT_SHOT:
+                return this.playerPowerUps.permanentShotStacks;
+            case this.powerUpTypes.PERMANENT_BULLET:
+                return this.playerPowerUps.permanentBulletStacks;
+            case this.powerUpTypes.PERMANENT_SIZE:
+                return this.playerPowerUps.permanentSizeStacks;
+            case this.powerUpTypes.PERMANENT_DRONE:
+                return this.playerPowerUps.permanentDroneStacks;
+            default:
+                return 0;
+        }
+    }
+
+    // Add method to create stack effect message
+    createStackEffect(type, stacks) {
+        const baseMessages = {
+            [this.powerUpTypes.PERMANENT_SPEED]: 'SPEED',
+            [this.powerUpTypes.PERMANENT_SHOT]: 'SHOT',
+            [this.powerUpTypes.PERMANENT_BULLET]: 'BULLET',
+            [this.powerUpTypes.PERMANENT_SIZE]: 'SIZE',
+            [this.powerUpTypes.PERMANENT_DRONE]: 'DRONE'
+        };
+
+        this.powerUpEffects.push({
+            message: `${baseMessages[type]} x${stacks}`,
+            color: '#f0f',
+            alpha: 1,
+            scale: 0,
+            y: this.player.y
         });
     }
 }
