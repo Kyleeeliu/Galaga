@@ -26,9 +26,9 @@ class Game {
         
         // Add enemy types
         this.enemyTypes = {
-            BOSS: 0,
-            ESCORT: 1,
-            GRUNT: 2
+            POLLUTION: 0,    // Was BOSS
+            WASTE: 1,       // Was ESCORT  
+            EMISSION: 2     // Was GRUNT
         };
         
         // Add stars for background
@@ -46,18 +46,18 @@ class Game {
         // Add power-ups
         this.powerUps = [];
         this.powerUpTypes = {
-            DOUBLE_SHOT: 0,
-            SPEED_UP: 1,
-            SHIELD: 2,
-            EXTRA_LIFE: 3,
-            PERMANENT_SPEED: 4,
-            PERMANENT_SHOT: 5,
-            BULLET_SPEED: 6,      // New: Faster bullets
-            SMALL_SHIP: 7,        // New: Smaller hitbox
-            DRONE: 8,             // New: Helper drone
-            PERMANENT_BULLET: 9,  // New: Permanent bullet speed
-            PERMANENT_SIZE: 10,   // New: Permanent small size
-            PERMANENT_DRONE: 11   // New: Permanent drone
+            RENEWABLE: 0,        // Was DOUBLE_SHOT
+            RECYCLE: 1,         // Was SPEED_UP
+            CONSERVATION: 2,    // Was SHIELD
+            GREEN_LIFE: 3,      // Was EXTRA_LIFE
+            SOLAR: 4,           // Was PERMANENT_SPEED
+            WIND: 5,            // Was PERMANENT_SHOT
+            WATER: 6,           // Was BULLET_SPEED
+            ECO_SHIP: 7,        // Was SMALL_SHIP
+            GREEN_TECH: 8,      // Was DRONE
+            CLEAN_ENERGY: 9,    // Was PERMANENT_BULLET
+            ECO_DESIGN: 10,     // Was PERMANENT_SIZE
+            INNOVATION: 11      // Was PERMANENT_DRONE
         };
         this.playerPowerUps = {
             doubleShot: false,
@@ -210,19 +210,19 @@ class Game {
         
         // Add enemy shooting properties
         this.enemyShootingConfig = {
-            BOSS: { 
+            POLLUTION: { 
                 chance: 0.015, 
                 bulletSpeed: 3, 
                 color: '#f00',
                 trackingChance: 0.3  // 30% chance for tracking bullets
             },
-            ESCORT: { 
+            WASTE: { 
                 chance: 0.01, 
                 bulletSpeed: 2.5, 
                 color: '#f80',
                 trackingChance: 0.2  // 20% chance for tracking bullets
             },
-            GRUNT: { 
+            EMISSION: { 
                 chance: 0.005, 
                 bulletSpeed: 2, 
                 color: '#ff0',
@@ -234,16 +234,16 @@ class Game {
         this.bulletEffects = {
             player: {
                 trail: true,
-                color: '#0ff',
+                color: '#4CAF50',  // Green for environmental protection
                 tailLength: 10,
                 width: 2,
                 height: 8,
                 glow: true
             },
             enemy: {
-                BOSS: { color: '#f00', glow: true, size: 10 },
-                ESCORT: { color: '#f80', glow: true, size: 8 },
-                GRUNT: { color: '#ff0', glow: true, size: 6 }
+                POLLUTION: { color: '#8B4513', glow: true, size: 10 },  // Brown for pollution
+                WASTE: { color: '#FF8C00', glow: true, size: 8 },      // Orange for waste
+                EMISSION: { color: '#808080', glow: true, size: 6 }    // Gray for emissions
             }
         };
         
@@ -561,9 +561,9 @@ class Game {
                         const x = centerX + (col - width/2 + 0.5) * spacing;
                         const y = startY + row * spacing;
                         formations.push(this.createEnemy(x, y,
-                            row === 0 ? this.enemyTypes.BOSS :
-                            row === 1 ? this.enemyTypes.ESCORT :
-                            this.enemyTypes.GRUNT,
+                            row === 0 ? this.enemyTypes.POLLUTION :
+                            row === 1 ? this.enemyTypes.WASTE :
+                            this.enemyTypes.EMISSION,
                             {
                                 startX: x < centerX ? -50 : this.canvas.width + 50,
                                 startY: -50,
@@ -588,9 +588,9 @@ class Game {
                     const y = startY + Math.sin(angle) * radius;
                     
                     formations.push(this.createEnemy(x, y,
-                        i === 0 ? this.enemyTypes.BOSS :
-                        i < 5 ? this.enemyTypes.ESCORT : // Increased from 3 to 5 escorts
-                        this.enemyTypes.GRUNT,
+                        i === 0 ? this.enemyTypes.POLLUTION :
+                        i < 5 ? this.enemyTypes.WASTE : // Increased from 3 to 5 escorts
+                        this.enemyTypes.EMISSION,
                         {
                             startX: centerX,
                             startY: -50,
@@ -613,7 +613,7 @@ class Game {
                             const x = centerX + i * spacing;
                             const y = startY + j * spacing;
                             formations.push(this.createEnemy(x, y,
-                                this.enemyTypes.GRUNT,
+                                this.enemyTypes.EMISSION,
                                 {
                                     startX: x < centerX ? -50 : this.canvas.width + 50,
                                     startY: -50,
@@ -631,7 +631,7 @@ class Game {
                         const x = centerX + i * spacing;
                         const y = startY + j * spacing;
                         formations.push(this.createEnemy(x, y,
-                            this.enemyTypes.ESCORT,
+                            this.enemyTypes.WASTE,
                             {
                                 startX: x < centerX ? -50 : this.canvas.width + 50,
                                 startY: -50,
@@ -644,7 +644,7 @@ class Game {
                 
                 // Boss in center
                 formations.push(this.createEnemy(centerX, startY,
-                    this.enemyTypes.BOSS,
+                    this.enemyTypes.POLLUTION,
                     {
                         startX: centerX,
                         startY: -50,
@@ -660,7 +660,7 @@ class Game {
                 
                 // Create the mega boss in the center
                 formations.push(this.createEnemy(centerX, startY, 
-                    this.enemyTypes.BOSS,
+                    this.enemyTypes.POLLUTION,
                     {
                         startX: centerX,
                         startY: -90,
@@ -679,7 +679,7 @@ class Game {
                     const y = startY + Math.sin(angle) * radius;
                     
                     formations.push(this.createEnemy(x, y,
-                        this.enemyTypes.ESCORT,
+                        this.enemyTypes.WASTE,
                         {
                             startX: centerX + Math.cos(angle) * 200,
                             startY: -50,
@@ -705,9 +705,10 @@ class Game {
                         const x = centerX + (i - (width-1)/2) * spacing;
                         const y = startY + layer * spacing;
                         formations.push(this.createEnemy(x, y,
-                            layer === 0 ? this.enemyTypes.BOSS :
-                            layer === 1 ? this.enemyTypes.ESCORT :
-                            this.enemyTypes.GRUNT,
+                            layer === 0 ? this.enemyTypes.POLLUTION :
+                            layer === 1 ? this.enemyTypes.WASTE :
+                            layer === 2 ? this.enemyTypes.EMISSION :
+                            this.enemyTypes.EMISSION,
                             {
                                 startX: x < centerX ? -50 : this.canvas.width + 50,
                                 startY: -50,
@@ -730,9 +731,9 @@ class Game {
                     formations.push(this.createEnemy(
                         centerX + i * spacing,
                         startY,
-                        i === 0 ? this.enemyTypes.BOSS :
-                        Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
-                        this.enemyTypes.GRUNT,
+                        i === 0 ? this.enemyTypes.POLLUTION :
+                        Math.abs(i) === 1 ? this.enemyTypes.WASTE :
+                        this.enemyTypes.EMISSION,
                         {
                             startX: centerX + i * spacing,
                             startY: -50,
@@ -746,8 +747,8 @@ class Game {
                         formations.push(this.createEnemy(
                             centerX,
                             startY + i * spacing,
-                            Math.abs(i) === 1 ? this.enemyTypes.ESCORT :
-                            this.enemyTypes.GRUNT,
+                            Math.abs(i) === 1 ? this.enemyTypes.WASTE :
+                            this.enemyTypes.EMISSION,
                             {
                                 startX: centerX,
                                 startY: -50,
@@ -766,7 +767,7 @@ class Game {
                 
                 // Boss in center
                 formations.push(this.createEnemy(centerX, startY,
-                    this.enemyTypes.BOSS,
+                    this.enemyTypes.POLLUTION,
                     {
                         startX: centerX,
                         startY: -50,
@@ -782,7 +783,7 @@ class Game {
                             formations.push(this.createEnemy(
                                 centerX + (col * spacing * side),
                                 startY + (row * spacing),
-                                row === 0 ? this.enemyTypes.ESCORT : this.enemyTypes.GRUNT,
+                                row === 0 ? this.enemyTypes.WASTE : this.enemyTypes.EMISSION,
                                 {
                                     startX: side < 0 ? -50 : this.canvas.width + 50,
                                     startY: -50,
@@ -803,7 +804,7 @@ class Game {
                 
                 // Boss in center
                 formations.push(this.createEnemy(centerX, startY,
-                    this.enemyTypes.BOSS,
+                    this.enemyTypes.POLLUTION,
                     {
                         startX: centerX,
                         startY: -50,
@@ -819,7 +820,7 @@ class Game {
                     const y = startY + Math.sin(angle) * radius;
                     
                     formations.push(this.createEnemy(x, y,
-                        i % 2 === 0 ? this.enemyTypes.ESCORT : this.enemyTypes.GRUNT,
+                        i % 2 === 0 ? this.enemyTypes.WASTE : this.enemyTypes.EMISSION,
                         {
                             startX: x < centerX ? -50 : this.canvas.width + 50,
                             startY: -50,
@@ -876,10 +877,10 @@ class Game {
             canShoot: false,
             health: isMegaBoss ? 
                 this.bossConfig.maxHealth : 
-                Math.ceil(type === this.enemyTypes.ESCORT ? 2 * healthScale : 1 * healthScale)
+                Math.ceil(type === this.enemyTypes.WASTE ? 2 * healthScale : 1 * healthScale)
         };
         
-        if (type === this.enemyTypes.BOSS) {
+        if (type === this.enemyTypes.POLLUTION) {
             enemy.currentPattern = 0;
             enemy.patternTimer = 0;
             enemy.lastShot = 0;
@@ -1065,8 +1066,8 @@ class Game {
                     const baseAngle = Math.atan2(dy, dx);
                     
                     // Add random spread based on enemy type
-                    const spread = enemy.type === this.enemyTypes.BOSS ? Math.PI/6 : // 30 degrees
-                                  enemy.type === this.enemyTypes.ESCORT ? Math.PI/4 : // 45 degrees
+                    const spread = enemy.type === this.enemyTypes.POLLUTION ? Math.PI/6 : // 30 degrees
+                                  enemy.type === this.enemyTypes.WASTE ? Math.PI/4 : // 45 degrees
                                   Math.PI/3; // 60 degrees for grunts
                     
                     const finalAngle = baseAngle + (Math.random() - 0.5) * spread;
@@ -1381,7 +1382,7 @@ class Game {
 
         // Check for escort collisions with player
         this.formations.forEach(enemy => {
-            if (enemy.attacking && enemy.type === this.enemyTypes.ESCORT) {
+            if (enemy.attacking && enemy.type === this.enemyTypes.WASTE) {
                 // Check if escort hits player
                 if (this.checkCollision(this.player, enemy)) {
                     // Create explosion
@@ -1468,7 +1469,7 @@ class Game {
 
         // Update boss shooting patterns
         this.formations.forEach(enemy => {
-            if (enemy.type === this.enemyTypes.BOSS && enemy.inPosition) {
+            if (enemy.type === this.enemyTypes.POLLUTION && enemy.inPosition) {
                 const now = Date.now();
                 const patterns = Object.values(this.bossAttackPatterns);
                 const currentPattern = patterns[enemy.currentPattern];
@@ -1946,8 +1947,9 @@ class Game {
             this.formations.forEach(enemy => {
                 if (enemy.currentX > -50) {
                     const enemyType = enemy.isMegaBoss ? 'MEGA BOSS' :
-                                     enemy.type === this.enemyTypes.BOSS ? 'BOSS' :
-                                     enemy.type === this.enemyTypes.ESCORT ? 'ESCORT' :
+                                     enemy.type === this.enemyTypes.POLLUTION ? 'POLLUTION' :
+                                     enemy.type === this.enemyTypes.WASTE ? 'WASTE' :
+                                     enemy.type === this.enemyTypes.EMISSION ? 'EMISSION' :
                                      'GRUNT';
                     
                     const healthLabel = `${enemyType} (${enemy.health})`;
@@ -1989,9 +1991,9 @@ class Game {
                 rightEdge, bottomStart + lineHeight * 3);
             
             // Add enemy type breakdown
-            const bosses = this.formations.filter(e => e.type === this.enemyTypes.BOSS && e.currentX > -50).length;
-            const escorts = this.formations.filter(e => e.type === this.enemyTypes.ESCORT && e.currentX > -50).length;
-            const grunts = this.formations.filter(e => e.type === this.enemyTypes.GRUNT && e.currentX > -50).length;
+            const bosses = this.formations.filter(e => e.type === this.enemyTypes.POLLUTION && e.currentX > -50).length;
+            const escorts = this.formations.filter(e => e.type === this.enemyTypes.WASTE && e.currentX > -50).length;
+            const grunts = this.formations.filter(e => e.type === this.enemyTypes.EMISSION && e.currentX > -50).length;
             this.ctx.fillText(`B:${bosses} E:${escorts} G:${grunts}`, rightEdge, bottomStart + lineHeight * 4);
             
             this.ctx.fillText(`POS: ${Math.round(this.player.x)},${Math.round(this.player.y)}`, 
@@ -1999,7 +2001,7 @@ class Game {
 
             // Draw escort charging trajectories
             this.formations.forEach(enemy => {
-                if (enemy.type === this.enemyTypes.ESCORT && enemy.attacking) {
+                if (enemy.type === this.enemyTypes.WASTE && enemy.attacking) {
                     // Draw predicted path
                     this.ctx.save();
                     this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
@@ -2057,50 +2059,34 @@ class Game {
     }
     
     drawPlayer() {
-        if (this.player.invulnerable && Math.floor(Date.now() / 100) % 2) return;
-        
         this.ctx.save();
-        this.ctx.translate(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2);
+        this.ctx.translate(this.player.x + this.player.width/2, this.player.y + this.player.height/2);
         
-        // Base ship model facing up (white/red/blue palette)
-        // Main body
-        this.ctx.fillStyle = '#fff';
-        this.ctx.fillRect(-1, -12, 2, 4);  // Top thin part
-        this.ctx.fillRect(-3, -8, 6, 16);  // Center body
-        this.ctx.fillRect(-6, 0, 12, 8);   // Wide base
+        // Draw eco-friendly ship design
+        // Main body (leaf shape)
+        this.ctx.fillStyle = '#4CAF50';  // Green
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -15);
+        this.ctx.quadraticCurveTo(15, 0, 0, 15);
+        this.ctx.quadraticCurveTo(-15, 0, 0, -15);
+        this.ctx.fill();
         
-        // Red accents
-        this.ctx.fillStyle = '#f00';
-        this.ctx.fillRect(-4, -4, 2, 12);  // Left red stripe
-        this.ctx.fillRect(2, -4, 2, 12);   // Right red stripe
-        this.ctx.fillRect(-8, 4, 2, 4);    // Left wing tip
-        this.ctx.fillRect(6, 4, 2, 4);     // Right wing tip
+        // Solar panels
+        this.ctx.fillStyle = '#81C784';  // Lighter green
+        this.ctx.fillRect(-12, -5, 5, 10);
+        this.ctx.fillRect(7, -5, 5, 10);
         
-        // Blue details
-        this.ctx.fillStyle = '#00f';
-        this.ctx.fillRect(-2, -8, 4, 4);   // Top blue section
-        this.ctx.fillRect(-6, 4, 2, 4);    // Left blue wing
-        this.ctx.fillRect(4, 4, 2, 4);     // Right blue wing
+        // Energy core
+        this.ctx.fillStyle = '#E8F5E9';  // Very light green
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Add glow effect
+        this.ctx.shadowColor = '#4CAF50';
+        this.ctx.shadowBlur = 10;
         
         this.ctx.restore();
-
-        // Draw drone if active
-        if (this.playerPowerUps.drone) {
-            const droneOffset = 25;
-            const droneY = this.player.y + 5;
-            
-            // Draw left drone
-            this.ctx.save();
-            this.ctx.translate(this.player.x - droneOffset, droneY);
-            this.drawDrone();
-            this.ctx.restore();
-            
-            // Draw right drone
-            this.ctx.save();
-            this.ctx.translate(this.player.x + this.player.width + droneOffset, droneY);
-            this.drawDrone();
-            this.ctx.restore();
-        }
     }
 
     drawEnemy(enemy) {
@@ -2112,9 +2098,9 @@ class Game {
             this.ctx.rotate(rotation);
         }
 
-        if (enemy.type === this.enemyTypes.BOSS) {
+        if (enemy.type === this.enemyTypes.POLLUTION) {
             this.drawBossEnemy(enemy.animationFrame);
-        } else if (enemy.type === this.enemyTypes.ESCORT) {
+        } else if (enemy.type === this.enemyTypes.WASTE) {
             this.drawEscortEnemy(enemy.animationFrame);
         } else {
             this.drawGruntEnemy(enemy.animationFrame);
@@ -2123,115 +2109,77 @@ class Game {
         this.ctx.restore();
     }
 
-    drawBossEnemy(frame) {
-        // Aircraft carrier/starship design facing down
-        const scale = this.isMegaBoss ? 4.5 : 1;  // Increased mega boss scale to 4.5x
+    drawBossEnemy(frame) {  // Pollution boss
+        const scale = 1.5;
         
-        // Main hull (gradient effect)
-        const gradient = this.ctx.createLinearGradient(0, -16 * scale, 0, 16 * scale);
-        gradient.addColorStop(0, '#555');
-        gradient.addColorStop(1, '#333');
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(-10 * scale, -16 * scale, 20 * scale, 32 * scale);
+        // Draw factory-like structure
+        this.ctx.fillStyle = '#8B4513';  // Dark brown
         
-        // Armor plating details
-        this.ctx.fillStyle = '#444';
-        for (let i = -12; i <= 12; i += 4) {
-            this.ctx.fillRect(i * scale, -14 * scale, 2 * scale, 28 * scale);
+        // Main structure
+        this.ctx.fillRect(-20 * scale, -10 * scale, 40 * scale, 20 * scale);
+        
+        // Smokestacks
+        this.ctx.fillStyle = '#654321';  // Darker brown
+        this.ctx.fillRect(-15 * scale, -20 * scale, 8 * scale, 10 * scale);
+        this.ctx.fillRect(7 * scale, -20 * scale, 8 * scale, 10 * scale);
+        
+        // Animated smoke
+        this.ctx.fillStyle = `rgba(128, 128, 128, ${0.5 + Math.sin(Date.now() / 200) * 0.3})`;
+        const smokeY = -25 * scale + Math.sin(Date.now() / 300) * 3;
+        this.ctx.beginPath();
+        this.ctx.arc(-11 * scale, smokeY, 6 * scale, 0, Math.PI * 2);
+        this.ctx.arc(11 * scale, smokeY - 3, 6 * scale, 0, Math.PI * 2);
+        this.ctx.fill();
+    }
+
+    drawEscortEnemy(frame) {  // Waste enemy
+        // Draw waste container
+        this.ctx.fillStyle = '#FF8C00';  // Dark orange
+        
+        // Container body
+        this.ctx.fillRect(-10, -12, 20, 24);
+        
+        // Hazard stripes
+        this.ctx.fillStyle = '#000';
+        for (let i = -2; i <= 2; i++) {
+            this.ctx.fillRect(-10, i * 5, 20, 2);
         }
         
-        // Command tower with windows
+        // Toxic symbol
+        this.ctx.fillStyle = '#FF0';
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 5, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Add pulsing glow effect
+        const glowIntensity = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+        this.ctx.shadowColor = '#FF8C00';
+        this.ctx.shadowBlur = 10 * glowIntensity;
+    }
+
+    drawGruntEnemy(frame) {  // Emissions enemy
+        // Draw smoke cloud
+        this.ctx.fillStyle = '#808080';  // Gray
+        
+        // Cloud shape
+        const cloudY = Math.sin(Date.now() / 300) * 2;  // Floating animation
+        this.ctx.beginPath();
+        this.ctx.arc(-5, cloudY, 8, 0, Math.PI * 2);
+        this.ctx.arc(5, cloudY, 8, 0, Math.PI * 2);
+        this.ctx.arc(0, cloudY - 5, 8, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Add particle effects
+        const particleCount = 3;
         this.ctx.fillStyle = '#666';
-        this.ctx.fillRect(-6 * scale, -10 * scale, 12 * scale, 14 * scale);
-        this.ctx.fillStyle = '#88f';
-        this.ctx.fillRect(-4 * scale, -8 * scale, 8 * scale, 2 * scale);
-        
-        // Flight deck with detailed markings
-        this.ctx.fillStyle = '#800';
-        this.ctx.fillRect(-14 * scale, 0 * scale, 28 * scale, 16 * scale);
-        
-        // Runway lights (blinking)
-        this.ctx.fillStyle = frame % 4 < 2 ? '#ff0' : '#880';
-        for (let i = -12; i <= 12; i += 4) {
-            this.ctx.fillRect(i * scale, 2 * scale, 2 * scale, 2 * scale);
-            this.ctx.fillRect(i * scale, 8 * scale, 2 * scale, 2 * scale);
-            this.ctx.fillRect(i * scale, 14 * scale, 2 * scale, 2 * scale);
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (Date.now() / 1000 + i * (Math.PI * 2 / particleCount));
+            const x = Math.cos(angle) * 5;
+            const y = Math.sin(angle) * 5 + cloudY;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 2, 0, Math.PI * 2);
+            this.ctx.fill();
         }
-        
-        // Side cannons with energy glow
-        this.ctx.fillStyle = '#006';
-        this.ctx.fillRect(-16 * scale, -6 * scale, 6 * scale, 12 * scale);
-        this.ctx.fillRect(10 * scale, -6 * scale, 6 * scale, 12 * scale);
-        
-        // Energy glow on cannon tips (pulsing)
-        const glowIntensity = Math.sin(Date.now() / 200) * 0.5 + 0.5;
-        this.ctx.fillStyle = `rgba(0, 128, 255, ${glowIntensity})`;
-        this.ctx.fillRect(-16 * scale, -2 * scale, 6 * scale, 4 * scale);
-        this.ctx.fillRect(10 * scale, -2 * scale, 6 * scale, 4 * scale);
-        
-        // Engine exhausts with animated glow
-        const engineGlow = Math.sin(Date.now() / 100) * 0.3 + 0.7;
-        const engineColor = frame % 2 ? 
-            `rgba(255, 128, 0, ${engineGlow})` : 
-            `rgba(255, 200, 0, ${engineGlow})`;
-        this.ctx.fillStyle = engineColor;
-        this.ctx.fillRect(-8 * scale, -18 * scale, 16 * scale, 4 * scale);
-        this.ctx.fillRect(-12 * scale, -16 * scale, 4 * scale, 2 * scale);
-        this.ctx.fillRect(8 * scale, -16 * scale, 4 * scale, 2 * scale);
-    }
-
-    drawEscortEnemy(frame) {
-        // Escort ship model facing down (green/white theme)
-        // Main body
-        this.ctx.fillStyle = '#0c0';
-        this.ctx.fillRect(-1, 8, 2, 4);    // Bottom thin part
-        this.ctx.fillRect(-3, -8, 6, 16);  // Center body
-        this.ctx.fillRect(-6, -8, 12, 8);  // Wide top
-        
-        // White accents
-        this.ctx.fillStyle = '#fff';
-        this.ctx.fillRect(-4, -8, 2, 12);  // Left stripe
-        this.ctx.fillRect(2, -8, 2, 12);   // Right stripe
-        this.ctx.fillRect(-8, -8, 2, 4);   // Left wing tip
-        this.ctx.fillRect(6, -8, 2, 4);    // Right wing tip
-        
-        // Energy details (animated)
-        const glowIntensity = Math.sin(Date.now() / 200) * 0.3 + 0.7;
-        this.ctx.fillStyle = frame % 2 ? '#0f0' : '#0a0';
-        this.ctx.fillRect(-2, 4, 4, 4);    // Bottom section
-        this.ctx.fillRect(-6, -8, 2, 4);   // Left wing
-        this.ctx.fillRect(4, -8, 2, 4);    // Right wing
-        
-        // Engine glow
-        this.ctx.fillStyle = `rgba(0, 255, 0, ${glowIntensity})`;
-        this.ctx.fillRect(-2, -12, 4, 4);  // Engine exhaust at top
-    }
-
-    drawGruntEnemy(frame) {
-        // Grunt ship model facing down (blue/cyan theme)
-        // Main body
-        this.ctx.fillStyle = '#00f';
-        this.ctx.fillRect(-1, 8, 2, 4);    // Bottom thin part
-        this.ctx.fillRect(-3, -8, 6, 16);  // Center body
-        this.ctx.fillRect(-6, -8, 12, 8);  // Wide top
-        
-        // Cyan accents
-        this.ctx.fillStyle = '#0ff';
-        this.ctx.fillRect(-4, -8, 2, 12);  // Left stripe
-        this.ctx.fillRect(2, -8, 2, 12);   // Right stripe
-        this.ctx.fillRect(-8, -8, 2, 4);   // Left wing tip
-        this.ctx.fillRect(6, -8, 2, 4);    // Right wing tip
-        
-        // Energy details (animated)
-        const glowIntensity = Math.sin(Date.now() / 200) * 0.3 + 0.7;
-        this.ctx.fillStyle = frame % 2 ? '#00f' : '#008';
-        this.ctx.fillRect(-2, 4, 4, 4);    // Bottom section
-        this.ctx.fillRect(-6, -8, 2, 4);   // Left wing
-        this.ctx.fillRect(4, -8, 2, 4);    // Right wing
-        
-        // Engine glow
-        this.ctx.fillStyle = `rgba(0, 128, 255, ${glowIntensity})`;
-        this.ctx.fillRect(-2, -12, 4, 4);  // Engine exhaust at top
     }
     
     gameLoop() {
@@ -2243,33 +2191,33 @@ class Game {
     createPowerUp(x, y) {
         const type = Math.floor(Math.random() * Object.keys(this.powerUpTypes).length);
         const powerUpSymbols = {
-            [this.powerUpTypes.DOUBLE_SHOT]: '2X',
-            [this.powerUpTypes.SPEED_UP]: '>>',
-            [this.powerUpTypes.SHIELD]: '⚡',
-            [this.powerUpTypes.EXTRA_LIFE]: '♥',
-            [this.powerUpTypes.PERMANENT_SPEED]: '∞S',
-            [this.powerUpTypes.PERMANENT_SHOT]: '∞2',
-            [this.powerUpTypes.BULLET_SPEED]: '→+',
-            [this.powerUpTypes.SMALL_SHIP]: '◊',
-            [this.powerUpTypes.DRONE]: '★',
-            [this.powerUpTypes.PERMANENT_BULLET]: '∞→',
-            [this.powerUpTypes.PERMANENT_SIZE]: '∞◊',
-            [this.powerUpTypes.PERMANENT_DRONE]: '∞★'
+            [this.powerUpTypes.RENEWABLE]: 'RENEWABLE',
+            [this.powerUpTypes.RECYCLE]: 'RECYCLE',
+            [this.powerUpTypes.CONSERVATION]: 'CONSERVE',
+            [this.powerUpTypes.GREEN_LIFE]: 'GREEN LIFE',
+            [this.powerUpTypes.SOLAR]: 'SOLAR',
+            [this.powerUpTypes.WIND]: 'WIND',
+            [this.powerUpTypes.WATER]: 'WATER',
+            [this.powerUpTypes.ECO_SHIP]: 'ECO SHIP',
+            [this.powerUpTypes.GREEN_TECH]: 'GREEN TECH',
+            [this.powerUpTypes.CLEAN_ENERGY]: 'CLEAN',
+            [this.powerUpTypes.ECO_DESIGN]: 'ECO BUILD',
+            [this.powerUpTypes.INNOVATION]: 'INNOVATE'
         };
         
         const powerUpLabels = {
-            [this.powerUpTypes.DOUBLE_SHOT]: 'DOUBLE',
-            [this.powerUpTypes.SPEED_UP]: 'SPEED',
-            [this.powerUpTypes.SHIELD]: 'SHIELD',
-            [this.powerUpTypes.EXTRA_LIFE]: 'LIFE',
-            [this.powerUpTypes.PERMANENT_SPEED]: 'PERM SPEED',
-            [this.powerUpTypes.PERMANENT_SHOT]: 'PERM SHOT',
-            [this.powerUpTypes.BULLET_SPEED]: 'FAST SHOT',
-            [this.powerUpTypes.SMALL_SHIP]: 'SMALL',
-            [this.powerUpTypes.DRONE]: 'DRONE',
-            [this.powerUpTypes.PERMANENT_BULLET]: 'PERM FAST',
-            [this.powerUpTypes.PERMANENT_SIZE]: 'PERM SMALL',
-            [this.powerUpTypes.PERMANENT_DRONE]: 'PERM DRONE'
+            [this.powerUpTypes.RENEWABLE]: 'RENEWABLE',
+            [this.powerUpTypes.RECYCLE]: 'RECYCLE',
+            [this.powerUpTypes.CONSERVATION]: 'CONSERVE',
+            [this.powerUpTypes.GREEN_LIFE]: 'GREEN LIFE',
+            [this.powerUpTypes.SOLAR]: 'SOLAR',
+            [this.powerUpTypes.WIND]: 'WIND',
+            [this.powerUpTypes.WATER]: 'WATER',
+            [this.powerUpTypes.ECO_SHIP]: 'ECO SHIP',
+            [this.powerUpTypes.GREEN_TECH]: 'GREEN TECH',
+            [this.powerUpTypes.CLEAN_ENERGY]: 'CLEAN',
+            [this.powerUpTypes.ECO_DESIGN]: 'ECO BUILD',
+            [this.powerUpTypes.INNOVATION]: 'INNOVATE'
         };
 
         this.powerUps.push({
@@ -2281,17 +2229,17 @@ class Game {
             speed: 1,
             health: 3,
             requiresShot: true,
-            color: type === this.powerUpTypes.DOUBLE_SHOT ? '#0ff' :
-                   type === this.powerUpTypes.SPEED_UP ? '#0f0' :
-                   type === this.powerUpTypes.SHIELD ? '#ff0' :
-                   type === this.powerUpTypes.EXTRA_LIFE ? '#f00' :
-                   type === this.powerUpTypes.PERMANENT_SPEED ? '#f0f' :
-                   type === this.powerUpTypes.PERMANENT_SHOT ? '#00f' :
-                   type === this.powerUpTypes.BULLET_SPEED ? '#fa0' :
-                   type === this.powerUpTypes.SMALL_SHIP ? '#0fa' :
-                   type === this.powerUpTypes.DRONE ? '#a0f' :
-                   type === this.powerUpTypes.PERMANENT_BULLET ? '#f80' :
-                   type === this.powerUpTypes.PERMANENT_SIZE ? '#8ff' :
+            color: type === this.powerUpTypes.RENEWABLE ? '#0ff' :
+                   type === this.powerUpTypes.RECYCLE ? '#0f0' :
+                   type === this.powerUpTypes.CONSERVATION ? '#ff0' :
+                   type === this.powerUpTypes.GREEN_LIFE ? '#f00' :
+                   type === this.powerUpTypes.SOLAR ? '#f0f' :
+                   type === this.powerUpTypes.WIND ? '#00f' :
+                   type === this.powerUpTypes.WATER ? '#fa0' :
+                   type === this.powerUpTypes.ECO_SHIP ? '#0fa' :
+                   type === this.powerUpTypes.GREEN_TECH ? '#a0f' :
+                   type === this.powerUpTypes.CLEAN_ENERGY ? '#f80' :
+                   type === this.powerUpTypes.ECO_DESIGN ? '#8ff' :
                    '#f0a',
             symbol: powerUpSymbols[type],
             label: powerUpLabels[type]
@@ -2303,7 +2251,7 @@ class Game {
         this.createPowerUpEffect(type);
 
         switch(type) {
-            case this.powerUpTypes.DOUBLE_SHOT:
+            case this.powerUpTypes.RENEWABLE:
                 if (!this.playerPowerUps.permanentShot) {
                     this.playerPowerUps.doubleShot = true;
                     setTimeout(() => {
@@ -2314,7 +2262,7 @@ class Game {
                     }, 10000);
                 }
                 break;
-            case this.powerUpTypes.SPEED_UP:
+            case this.powerUpTypes.RECYCLE:
                 if (!this.playerPowerUps.permanentSpeed) {
                     this.player.speed *= 1.5;
                     setTimeout(() => {
@@ -2325,26 +2273,26 @@ class Game {
                     }, 8000);
                 }
                 break;
-            case this.powerUpTypes.SHIELD:
+            case this.powerUpTypes.CONSERVATION:
                 this.playerPowerUps.shield = true;
                 setTimeout(() => {
                     this.playerPowerUps.shield = false;
                     this.sounds.powerupExpire.play();
                 }, 5000);
                 break;
-            case this.powerUpTypes.EXTRA_LIFE:
+            case this.powerUpTypes.GREEN_LIFE:
                 this.lives++;
                 document.getElementById('livesValue').textContent = this.lives;
                 break;
-            case this.powerUpTypes.PERMANENT_SPEED:
+            case this.powerUpTypes.SOLAR:
                 this.playerPowerUps.permanentSpeedStacks++;
                 this.player.speed *= 1.1; // Reduced from 1.2 to 1.1
                 break;
-            case this.powerUpTypes.PERMANENT_SHOT:
+            case this.powerUpTypes.WIND:
                 this.playerPowerUps.permanentShotStacks++;
                 this.playerPowerUps.doubleShot = true;
                 break;
-            case this.powerUpTypes.BULLET_SPEED:
+            case this.powerUpTypes.WATER:
                 if (!this.playerPowerUps.permanentBullet) {
                     this.playerPowerUps.bulletSpeed = true;
                     setTimeout(() => {
@@ -2355,7 +2303,7 @@ class Game {
                     }, 10000);
                 }
                 break;
-            case this.powerUpTypes.SMALL_SHIP:
+            case this.powerUpTypes.ECO_SHIP:
                 if (!this.playerPowerUps.permanentSize) {
                     this.playerPowerUps.smallShip = true;
                     this.player.width *= 0.7;
@@ -2370,7 +2318,7 @@ class Game {
                     }, 12000);
                 }
                 break;
-            case this.powerUpTypes.DRONE:
+            case this.powerUpTypes.GREEN_TECH:
                 if (!this.playerPowerUps.permanentDrone) {
                     this.playerPowerUps.drone = true;
                     setTimeout(() => {
@@ -2381,23 +2329,23 @@ class Game {
                     }, 15000);
                 }
                 break;
-            case this.powerUpTypes.PERMANENT_BULLET:
+            case this.powerUpTypes.CLEAN_ENERGY:
                 this.playerPowerUps.permanentBulletStacks++;
                 this.playerPowerUps.bulletSpeed = true;
                 break;
-            case this.powerUpTypes.PERMANENT_SIZE:
+            case this.powerUpTypes.ECO_DESIGN:
                 this.playerPowerUps.permanentSizeStacks++;
                 this.player.width *= 0.95; // Less reduction per stack (from 0.9)
                 this.player.height *= 0.95;
                 break;
-            case this.powerUpTypes.PERMANENT_DRONE:
+            case this.powerUpTypes.INNOVATION:
                 this.playerPowerUps.permanentDroneStacks = Math.min(3, this.playerPowerUps.permanentDroneStacks + 1); // Cap at 3 drones
                 this.playerPowerUps.drone = true;
                 break;
         }
 
         // Update power-up effect message to show stacks
-        if (type >= this.powerUpTypes.PERMANENT_SPEED) {
+        if (type >= this.powerUpTypes.SOLAR) {
             const stacks = this.getStackCount(type);
             this.createStackEffect(type, stacks);
         }
@@ -2423,7 +2371,7 @@ class Game {
         this.createExplosion(
             this.player.x + this.player.width/2,
             this.player.y + this.player.height/2,
-            this.enemyTypes.ESCORT
+            this.enemyTypes.WASTE
         );
         
         this.lives--;
@@ -2562,8 +2510,8 @@ class Game {
             enemy.attacking = false;
             
             // Award score
-            const baseScore = enemy.type === this.enemyTypes.BOSS ? 300 :
-                             enemy.type === this.enemyTypes.ESCORT ? 200 : 100;
+            const baseScore = enemy.type === this.enemyTypes.POLLUTION ? 300 :
+                             enemy.type === this.enemyTypes.WASTE ? 200 : 100;
             const scoreMultiplier = 1 + (this.wave * 0.1);
             this.score += Math.floor(baseScore * this.difficulties['normal'].scoreMultiplier * scoreMultiplier);
             document.getElementById('scoreValue').textContent = this.score;
@@ -2603,7 +2551,7 @@ class Game {
     }
 
     startAttack(enemy) {
-        if (enemy.type !== this.enemyTypes.ESCORT) return;
+        if (enemy.type !== this.enemyTypes.WASTE) return;
         
         const currentAttackers = this.formations.filter(e => e.attacking).length;
         const maxAttackers = Math.min(4, Math.floor(1 + this.wave/2));
@@ -2939,8 +2887,8 @@ class Game {
     }
 
     createExplosion(x, y, type) {
-        const colors = type === this.enemyTypes.BOSS ? ['255,200,0', '255,100,0', '255,50,0'] :  // Yellow-orange fire
-                      type === this.enemyTypes.ESCORT ? ['0,255,255', '100,150,255', '255,255,255'] :  // Blue-white energy
+        const colors = type === this.enemyTypes.POLLUTION ? ['255,200,0', '255,100,0', '255,50,0'] :  // Yellow-orange fire
+                      type === this.enemyTypes.WASTE ? ['0,255,255', '100,150,255', '255,255,255'] :  // Blue-white energy
                       ['255,100,100', '255,255,255', '255,0,0'];  // Red-white burst
         
         // Create two layers of particles for more density
@@ -3054,15 +3002,15 @@ class Game {
     // Add method to get stack count for a power-up type
     getStackCount(type) {
         switch(type) {
-            case this.powerUpTypes.PERMANENT_SPEED:
-                return this.playerPowerUps.permanentSpeedStacks;
-            case this.powerUpTypes.PERMANENT_SHOT:
+            case this.powerUpTypes.RENEWABLE:
                 return this.playerPowerUps.permanentShotStacks;
-            case this.powerUpTypes.PERMANENT_BULLET:
+            case this.powerUpTypes.RECYCLE:
+                return this.playerPowerUps.permanentSpeedStacks;
+            case this.powerUpTypes.CONSERVATION:
                 return this.playerPowerUps.permanentBulletStacks;
-            case this.powerUpTypes.PERMANENT_SIZE:
+            case this.powerUpTypes.GREEN_LIFE:
                 return this.playerPowerUps.permanentSizeStacks;
-            case this.powerUpTypes.PERMANENT_DRONE:
+            case this.powerUpTypes.SOLAR:
                 return this.playerPowerUps.permanentDroneStacks;
             default:
                 return 0;
@@ -3072,11 +3020,18 @@ class Game {
     // Add method to create stack effect message
     createStackEffect(type, stacks) {
         const baseMessages = {
-            [this.powerUpTypes.PERMANENT_SPEED]: 'SPEED',
-            [this.powerUpTypes.PERMANENT_SHOT]: 'SHOT',
-            [this.powerUpTypes.PERMANENT_BULLET]: 'BULLET',
-            [this.powerUpTypes.PERMANENT_SIZE]: 'SIZE',
-            [this.powerUpTypes.PERMANENT_DRONE]: 'DRONE'
+            [this.powerUpTypes.RENEWABLE]: 'RENEWABLE',
+            [this.powerUpTypes.RECYCLE]: 'RECYCLE',
+            [this.powerUpTypes.CONSERVATION]: 'CONSERVE',
+            [this.powerUpTypes.GREEN_LIFE]: 'GREEN LIFE',
+            [this.powerUpTypes.SOLAR]: 'SOLAR',
+            [this.powerUpTypes.WIND]: 'WIND',
+            [this.powerUpTypes.WATER]: 'WATER',
+            [this.powerUpTypes.ECO_SHIP]: 'ECO SHIP',
+            [this.powerUpTypes.GREEN_TECH]: 'GREEN TECH',
+            [this.powerUpTypes.CLEAN_ENERGY]: 'CLEAN',
+            [this.powerUpTypes.ECO_DESIGN]: 'ECO BUILD',
+            [this.powerUpTypes.INNOVATION]: 'INNOVATE'
         };
 
         this.powerUpEffects.push({
