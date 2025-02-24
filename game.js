@@ -10,7 +10,7 @@ class Game {
             y: this.canvas.height - 50,
             width: 30,
             height: 20,
-            speed: 4
+            speed: 3  // Reduced from 4 to 3
         };
         
         this.bullets = [];
@@ -52,17 +52,26 @@ class Game {
             EXTRA_LIFE: 3,
             PERMANENT_SPEED: 4,
             PERMANENT_SHOT: 5,
-            BULLET_SPEED: 6,
-            SMALL_SHIP: 7,
-            DRONE: 8,
-            PERMANENT_BULLET: 9,
-            PERMANENT_SIZE: 10,
-            PERMANENT_DRONE: 11
+            BULLET_SPEED: 6,      // New: Faster bullets
+            SMALL_SHIP: 7,        // New: Smaller hitbox
+            DRONE: 8,             // New: Helper drone
+            PERMANENT_BULLET: 9,  // New: Permanent bullet speed
+            PERMANENT_SIZE: 10,   // New: Permanent small size
+            PERMANENT_DRONE: 11   // New: Permanent drone
         };
         this.playerPowerUps = {
             doubleShot: false,
             speedUp: false,
-            shield: false
+            shield: false,
+            bulletSpeed: false,
+            smallShip: false,
+            drone: false,
+            // Track stacks for permanent upgrades
+            permanentSpeedStacks: 0,
+            permanentShotStacks: 0,
+            permanentBulletStacks: 0,
+            permanentSizeStacks: 0,
+            permanentDroneStacks: 0
         };
         
         // Initialize sounds
@@ -205,19 +214,19 @@ class Game {
                 chance: 0.015, 
                 bulletSpeed: 3, 
                 color: '#f00',
-                trackingChance: 0.3
+                trackingChance: 0.3  // 30% chance for tracking bullets
             },
             ESCORT: { 
                 chance: 0.01, 
                 bulletSpeed: 2.5, 
                 color: '#f80',
-                trackingChance: 0.2
+                trackingChance: 0.2  // 20% chance for tracking bullets
             },
             GRUNT: { 
                 chance: 0.005, 
                 bulletSpeed: 2, 
                 color: '#ff0',
-                trackingChance: 0.1
+                trackingChance: 0.1  // 10% chance for tracking bullets
             }
         };
         
@@ -350,6 +359,71 @@ class Game {
         // Detect if on computer (non-touch device)
         this.isComputer = !('ontouchstart' in window);
         
+        // Add new boss attack patterns configuration
+        this.bossAttackPatterns = {
+            SINGLE: {
+                cooldown: 1000,
+                execute: (boss) => {
+                    // Random angle within 60 degree cone
+                    const angle = Math.PI/2 + (Math.random() - 0.5) * Math.PI/3;
+                    this.createEnemyBullet(boss, angle);
+                }
+            },
+            SPREAD: {
+                cooldown: 800,
+                execute: (boss) => {
+                    // Random number of bullets between 2-4
+                    const bulletCount = 2 + Math.floor(Math.random() * 3);
+                    const baseAngle = Math.PI/2 + (Math.random() - 0.5) * Math.PI/6;
+                    const spread = Math.PI/4; // 45 degree spread
+                    
+                    for (let i = 0; i < bulletCount; i++) {
+                        const angle = baseAngle + (spread * (i/(bulletCount-1) - 0.5));
+                        this.createEnemyBullet(boss, angle);
+                    }
+                }
+            },
+            BURST: {
+                cooldown: 150,
+                burstCount: 3, // Reduced from 5
+                burstDelay: 100,
+                execute: (boss) => {
+                    if (boss.burstCount === undefined) boss.burstCount = 0;
+                    if (boss.burstCount < this.bossAttackPatterns.BURST.burstCount) {
+                        // Random angle within 45 degree cone
+                        const angle = Math.PI/2 + (Math.random() - 0.5) * Math.PI/4;
+                        this.createEnemyBullet(boss, angle);
+                        boss.burstCount++;
+                    } else {
+                        boss.burstCount = 0;
+                        boss.currentPattern = (boss.currentPattern + 1) % 4;
+                    }
+                }
+            },
+            CIRCLE: {
+                cooldown: 1200,
+                execute: (boss) => {
+                    // Random number of bullets between 6-8
+                    const bulletCount = 6 + Math.floor(Math.random() * 3);
+                    const startAngle = Math.random() * Math.PI * 2; // Random starting angle
+                    
+                    for (let i = 0; i < bulletCount; i++) {
+                        const angle = startAngle + (i * Math.PI * 2 / bulletCount);
+                        this.createEnemyBullet(boss, angle);
+                    }
+                }
+            }
+        };
+        
+        // Add auto-fire state
+        this.autoFire = false;
+        this.autoFireCooldown = 0;
+        this.autoFireRate = 150; // Time between shots in milliseconds
+        
+        // Add drone shooting cooldown
+        this.droneCooldown = 0;
+        this.droneReloadTime = 120; // 2 seconds at 60fps
+        
         this.init();
     }
     
@@ -394,6 +468,11 @@ class Game {
                 if (e.key === 'ArrowDown' || e.key === 's') {
                     this.changeDifficulty(1);
                 }
+            }
+            
+            // Toggle auto-fire with 'F' key
+            if (e.key.toLowerCase() === 'f') {
+                this.autoFire = !this.autoFire;
             }
         });
         
@@ -573,7 +652,7 @@ class Game {
                         controlY: startY - 30
                     }
                 ));
-            },
+            },  // <-- Added missing comma here
             
             BOSS_WAVE: () => {
                 const centerX = this.canvas.width/2;
@@ -756,7 +835,7 @@ class Game {
         if (this.wave % 3 === 0) {
             patterns.BOSS_WAVE();
         } else {
-            const patternKeys = ['ARROW', 'SPIRAL', 'FORTRESS'];
+            const patternKeys = ['ARROW', 'SPIRAL', 'FORTRESS', 'DIAMOND', 'CROSS', 'WINGS', 'HEXAGON'];
             const pattern = patterns[patternKeys[this.wave % patternKeys.length]];
             pattern(baseConfig.totalEnemies);
         }
@@ -799,14 +878,14 @@ class Game {
                 this.bossConfig.maxHealth : 
                 Math.ceil(type === this.enemyTypes.ESCORT ? 2 * healthScale : 1 * healthScale)
         };
-
+        
         if (type === this.enemyTypes.BOSS) {
             enemy.currentPattern = 0;
             enemy.patternTimer = 0;
             enemy.lastShot = 0;
             enemy.burstCount = 0;
         }
-
+        
         return enemy;
     }
     
@@ -986,11 +1065,12 @@ class Game {
                     const baseAngle = Math.atan2(dy, dx);
                     
                     // Add random spread based on enemy type
-                    const spread = enemy.type === this.enemyTypes.BOSS ? Math.PI/6 :
-                                  enemy.type === this.enemyTypes.ESCORT ? Math.PI/4 :
-                                  Math.PI/3;
+                    const spread = enemy.type === this.enemyTypes.BOSS ? Math.PI/6 : // 30 degrees
+                                  enemy.type === this.enemyTypes.ESCORT ? Math.PI/4 : // 45 degrees
+                                  Math.PI/3; // 60 degrees for grunts
                     
                     const finalAngle = baseAngle + (Math.random() - 0.5) * spread;
+                    
                     const bulletSpeed = this.enemyShootingConfig[
                         Object.keys(this.enemyTypes)[enemy.type]
                     ].bulletSpeed;
@@ -1032,31 +1112,29 @@ class Game {
             }
         });
 
-        // Update bullet collisions with enemies
-        this.bullets = this.bullets.filter((bullet, bulletIndex) => {
-            let bulletHit = false;
-            
-            // Move bullet
-            bullet.y -= bullet.speed;
-            
-            // Update bullet trail
-            if (this.bulletEffects.player.trail) {
-                bullet.trail.unshift({ x: bullet.x, y: bullet.y });
-                if (bullet.trail.length > this.bulletEffects.player.tailLength) {
-                    bullet.trail.pop();
-                }
+        // Update enemy bullets and check for collisions
+        this.enemyBullets = this.enemyBullets.filter((bullet, index) => {
+            if (bullet.dx !== undefined) {
+                // Move bullets according to their angle
+                bullet.x += bullet.dx;
+                bullet.y += bullet.dy;
+            } else {
+                // Regular straight-down movement for normal enemies
+                bullet.y += bullet.speed;
             }
             
-            // Check collisions with enemies
-            for (let enemy of this.formations) {
-                if (!bulletHit && enemy.currentX > -50 && this.checkCollision(bullet, enemy)) {
-                    this.handleEnemyDestruction(enemy);
-                    bulletHit = true;
-                }
+            // Remove bullets that are off screen
+            if (bullet.y > this.canvas.height || bullet.x < 0 || bullet.x > this.canvas.width) {
+                return false;
             }
             
-            // Keep bullet if it's still on screen and hasn't hit anything
-            return !bulletHit && bullet.y > 0;
+            // Check collision with player
+            if (!this.player.invulnerable && this.checkCollision(bullet, this.player)) {
+                this.playerHit();
+                return false;
+            }
+            
+            return true;
         });
 
         // Update bullet collisions with power-ups
@@ -1085,29 +1163,134 @@ class Game {
         }
 
         // Update shooting
-        if (this.keys[' ']) {
-            if (!this.shooting) {  // Removed rapidFire check
+        const now = Date.now();
+        if (this.keys[' '] || (this.autoFire && now - this.autoFireCooldown >= this.autoFireRate)) {
+            if (!this.shooting) {
+                // Main ship bullets
                 if (this.playerPowerUps.doubleShot) {
-                    this.bullets.push(this.createPlayerBullet(
-                        this.player.x + this.player.width / 4,
-                        this.player.y
-                    ));
-                    this.bullets.push(this.createPlayerBullet(
-                        this.player.x + (this.player.width * 3) / 4,
-                        this.player.y
-                    ));
+                    const shotCount = Math.min(5, 2 + Math.floor(this.playerPowerUps.permanentShotStacks / 3)); // Cap at 5 shots
+                    for (let i = 0; i < shotCount; i++) {
+                        const spread = (i - (shotCount - 1) / 2) * 0.15; // Reduced spread
+                        this.bullets.push(this.createPlayerBullet(
+                            this.player.x + this.player.width * ((i + 1) / (shotCount + 1)),
+                            this.player.y,
+                            spread
+                        ));
+                    }
                 } else {
                     this.bullets.push(this.createPlayerBullet(
                         this.player.x + this.player.width / 2,
                         this.player.y
                     ));
                 }
+
+                // Drone bullets
+                if (this.playerPowerUps.drone && this.droneCooldown <= 0) {
+                    const droneCount = 1 + this.playerPowerUps.permanentDroneStacks;
+                    for (let i = 0; i < droneCount; i++) {
+                        const offset = 25 + (i * 15);
+                        // Left drone
+                        this.bullets.push(this.createDroneBullet(
+                            this.player.x - offset,
+                            this.player.y + 5,
+                            0.2
+                        ));
+                        // Right drone
+                        this.bullets.push(this.createDroneBullet(
+                            this.player.x + this.player.width + offset,
+                            this.player.y + 5,
+                            -0.2
+                        ));
+                    }
+                    this.droneCooldown = this.droneReloadTime;
+                } else if (this.droneCooldown > 0) {
+                    this.droneCooldown--;
+                }
+
                 this.sounds.shoot.play();
                 this.shooting = true;
+                if (this.autoFire) {
+                    this.autoFireCooldown = now;
+                }
             }
         } else {
             this.shooting = false;
         }
+
+        // Update bullets (revert to original)
+        this.bullets.forEach((bullet, index) => {
+            bullet.y -= bullet.speed;
+            
+            // Update bullet trail
+            if (this.bulletEffects.player.trail) {
+                bullet.trail.unshift({ x: bullet.x, y: bullet.y });
+                if (bullet.trail.length > this.bulletEffects.player.tailLength) {
+                    bullet.trail.pop();
+                }
+            }
+            
+            // Remove bullets that are off screen
+            if (bullet.y < 0) {
+                this.bullets.splice(index, 1);
+                return;
+            }
+        });
+
+        // Update enemy bullets
+        this.enemyBullets = this.enemyBullets.filter((bullet) => {
+            bullet.x += bullet.dx;
+            bullet.y += bullet.dy;
+
+            // Update trail for enemy bullets
+            bullet.trail = bullet.trail || [];
+            bullet.trail.unshift({ x: bullet.x, y: bullet.y });
+            if (bullet.trail.length > 16) { // Even longer trail for enemy bullets
+                bullet.trail.pop();
+            }
+
+            // Remove bullets that are off screen
+            return !(bullet.y > this.canvas.height || bullet.x < 0 || bullet.x > this.canvas.width);
+        });
+
+        // Update bullet collisions with enemies
+        this.bullets.forEach((bullet, bulletIndex) => {
+            this.formations.forEach((enemy, enemyIndex) => {
+                // Only check collisions for active enemies
+                if (enemy.currentX > -50 && this.checkCollision(bullet, enemy)) {
+                    this.handleEnemyDestruction(enemy, bulletIndex);
+                    return;  // Exit after handling destruction
+                }
+            });
+        });
+
+        // Update formations with smooth path following
+        this.formations.forEach(enemy => {
+            if (enemy.currentX <= -50) return;  // Skip destroyed enemies
+
+            if (!enemy.inPosition && enemy.path) {
+                // Use quadratic bezier curve for smooth movement
+                enemy.pathProgress = Math.min(1, enemy.pathProgress + 0.01);
+                const t = enemy.pathProgress;
+                const p0x = enemy.path.startX;
+                const p0y = enemy.path.startY;
+                const p1x = enemy.path.controlX;
+                const p1y = enemy.path.controlY;
+                const p2x = enemy.targetX;
+                const p2y = enemy.targetY;
+                
+                // Quadratic bezier curve calculation
+                enemy.currentX = Math.pow(1-t, 2) * p0x + 2 * (1-t) * t * p1x + Math.pow(t, 2) * p2x;
+                enemy.currentY = Math.pow(1-t, 2) * p0y + 2 * (1-t) * t * p1y + Math.pow(t, 2) * p2y;
+                
+                if (enemy.pathProgress >= 1) {
+                    enemy.inPosition = true;
+                }
+            } else if (enemy.inPosition && !enemy.attacking) {
+                // Gentle swaying motion when in formation
+                enemy.currentX = enemy.targetX + Math.sin(Date.now() / 2000) * 10;
+            }
+            // ... rest of enemy update code ...
+        });
 
         // Update stars movement
         this.stars.forEach(star => {
@@ -1304,104 +1487,21 @@ class Game {
                 }
             }
         });
-
-        // Add this to the update method, after the shooting code:
-        // Update enemy bullets and check for collisions
-        this.enemyBullets = this.enemyBullets.filter((bullet) => {
-            if (bullet.dx !== undefined) {
-                bullet.x += bullet.dx;
-                bullet.y += bullet.dy;
-            } else {
-                bullet.y += bullet.speed;
-            }
-            
-            // Remove bullets that are off screen
-            if (bullet.y > this.canvas.height || bullet.x < 0 || bullet.x > this.canvas.width) {
-                return false;
-            }
-            
-            // Check collision with player
-            if (!this.player.invulnerable && this.checkCollision(bullet, this.player)) {
-                this.playerHit();
-                return false;
-            }
-            
-            return true;
-        });
-
-        // Update formations with smooth path following
-        this.formations.forEach(enemy => {
-            if (enemy.currentX <= -50) return;  // Skip destroyed enemies
-
-            if (!enemy.inPosition && enemy.path) {
-                // Use quadratic bezier curve for smooth movement
-                enemy.pathProgress = Math.min(1, enemy.pathProgress + 0.01);
-                const t = enemy.pathProgress;
-                const p0x = enemy.path.startX;
-                const p0y = enemy.path.startY;
-                const p1x = enemy.path.controlX;
-                const p1y = enemy.path.controlY;
-                const p2x = enemy.targetX;
-                const p2y = enemy.targetY;
-                
-                // Quadratic bezier curve calculation
-                enemy.currentX = Math.pow(1-t, 2) * p0x + 2 * (1-t) * t * p1x + Math.pow(t, 2) * p2x;
-                enemy.currentY = Math.pow(1-t, 2) * p0y + 2 * (1-t) * t * p1y + Math.pow(t, 2) * p2y;
-                
-                if (enemy.pathProgress >= 1) {
-                    enemy.inPosition = true;
-                }
-            } else if (enemy.inPosition && !enemy.attacking) {
-                // Gentle swaying motion when in formation
-                enemy.currentX = enemy.targetX + Math.sin(Date.now() / 2000) * 10;
-            }
-        });
-
-        // Update attacking enemies
-        this.formations.forEach(enemy => {
-            if (enemy.attacking) {
-                if (enemy.isMegaBoss) {
-                    // Boss stays in position but can shoot
-                    const dx = enemy.targetX - enemy.currentX;
-                    const moveSpeed = 1;
-                    
-                    // Gentle side-to-side movement
-                    enemy.currentX += Math.sin(Date.now() / 1000) * moveSpeed;
-                    
-                    // Keep boss within screen bounds
-                    enemy.currentX = Math.max(enemy.width/2, Math.min(this.canvas.width - enemy.width/2, enemy.currentX));
-                } else {
-                    // Regular enemy diving attack
-                    const speed = 3;
-                    const dx = enemy.targetX - enemy.currentX;
-                    const dy = enemy.targetY - enemy.currentY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance > speed) {
-                        enemy.currentX += (dx / distance) * speed;
-                        enemy.currentY += (dy / distance) * speed;
-                    } else {
-                        enemy.currentX = -100; // Move off screen when done
-                    }
-                }
-            }
-        });
     }
     
     checkCollision(rect1, rect2) {
+        // For bullets, use their direct x,y coordinates
         const r1x = rect1.x - (rect1.width / 2);
         const r1y = rect1.y;
+        
+        // For enemies and other objects, use their current positions
         const r2x = rect2.currentX || rect2.x;
         const r2y = rect2.currentY || rect2.y;
-        const r1w = rect1.width;
-        const r1h = rect1.height;
-        const r2w = rect2.width;
-        const r2h = rect2.height;
 
-        return r1x < (r2x + r2w) &&
-               (r1x + r1w) > r2x &&
-               r1y < (r2y + r2h) &&
-               (r1y + r1h) > r2y;
+        return r1x < (r2x + rect2.width) &&
+               (r1x + rect1.width) > r2x &&
+               r1y < (r2y + rect2.height) &&
+               (r1y + rect1.height) > r2y;
     }
     
     draw() {
@@ -1420,17 +1520,28 @@ class Game {
         // Draw bullets with trails and glow
         this.bullets.forEach(bullet => {
             // Draw trail
-            if (this.bulletEffects.player.trail && bullet.trail.length) {
+            if (this.bulletEffects.player.trail && bullet.trail.length > 1) {
                 this.ctx.save();
-                for (let i = 0; i < bullet.trail.length; i++) {
+                for (let i = 1; i < bullet.trail.length; i++) {
                     const alpha = 1 - (i / bullet.trail.length);
                     this.ctx.fillStyle = `rgba(0, 255, 255, ${alpha * 0.5})`;
+                    
+                    // Calculate trail segment angle
+                    const dx = bullet.trail[i].x - bullet.trail[i-1].x;
+                    const dy = bullet.trail[i].y - bullet.trail[i-1].y;
+                    const angle = Math.atan2(dy, dx);
+                    
+                    // Draw rotated trail segment
+                    this.ctx.save();
+                    this.ctx.translate(bullet.trail[i].x, bullet.trail[i].y);
+                    this.ctx.rotate(angle);
                     this.ctx.fillRect(
-                        bullet.trail[i].x - bullet.width / 2,
-                        bullet.trail[i].y,
-                        bullet.width,
-                        bullet.height * 0.8
+                        -bullet.visualWidth/2,
+                        -bullet.visualHeight/2,
+                        bullet.visualWidth,
+                        bullet.visualHeight * 0.8
                     );
+                    this.ctx.restore();
                 }
                 this.ctx.restore();
             }
@@ -1465,11 +1576,228 @@ class Game {
             // Add warning trail effect
             this.ctx.save();
             this.ctx.strokeStyle = bullet.color;
-            this.ctx.lineWidth = 1;
+            this.ctx.lineWidth = 3;  // Thicker trail
             this.ctx.globalAlpha = 0.3;
             this.ctx.beginPath();
             this.ctx.moveTo(bullet.x, bullet.y);
-            this.ctx.lineTo(bullet.x, bullet.y - 20);
+            // Calculate trail end point based on bullet direction
+            const trailLength = 20;
+            this.ctx.lineTo(
+                bullet.x - (bullet.dx/bullet.speed) * trailLength, 
+                bullet.y - (bullet.dy/bullet.speed) * trailLength
+            );
+            this.ctx.stroke();
+            this.ctx.restore();
+
+            // Draw glow effect
+            this.ctx.save();
+            this.ctx.shadowColor = bullet.color;
+            this.ctx.shadowBlur = 15;
+            this.ctx.beginPath();
+            this.ctx.arc(bullet.x, bullet.y, bullet.width, 0, Math.PI * 2);
+            this.ctx.fillStyle = bullet.color;
+            this.ctx.fill();
+            this.ctx.restore();
+
+            // Draw bright core
+            this.ctx.beginPath();
+            this.ctx.arc(bullet.x, bullet.y, bullet.width * 0.7, 0, Math.PI * 2);
+            this.ctx.fillStyle = '#fff';
+            this.ctx.fill();
+        });
+        
+        // Draw enemies
+        this.formations.forEach(enemy => {
+            if (enemy.currentX > -50) {
+                this.drawEnemy(enemy);
+            }
+        });
+
+        // Draw power-ups with health bars
+        this.powerUps.forEach(powerUp => {
+            // Draw glowing effect
+            const glow = Math.sin(Date.now() / 200) * 0.2 + 0.8;
+            this.ctx.globalAlpha = glow;
+            this.ctx.fillStyle = powerUp.color;
+            this.ctx.beginPath();
+            this.ctx.arc(powerUp.x + 10, powerUp.y + 10, 12, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Draw main power-up
+            this.ctx.globalAlpha = 1;
+            this.ctx.beginPath();
+            this.ctx.arc(powerUp.x + 10, powerUp.y + 10, 10, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Draw symbol
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '12px "Press Start 2P"';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(powerUp.symbol, powerUp.x + 10, powerUp.y + 10);
+
+            // Draw label above
+            this.ctx.font = '8px "Press Start 2P"';
+            this.ctx.fillText(powerUp.label, powerUp.x + 10, powerUp.y - 15);
+
+            // Draw health bars
+            const barWidth = 20;
+            const barHeight = 3;
+            const spacing = 2;
+            
+            for (let i = 0; i < powerUp.health; i++) {
+                this.ctx.fillStyle = '#fff';
+                this.ctx.fillRect(
+                    powerUp.x + (20 - barWidth) / 2,
+                    powerUp.y - (spacing + barHeight) * (i + 1),
+                    barWidth,
+                    barHeight
+                );
+            }
+        });
+
+        // Draw shield if active
+        if (this.playerPowerUps.shield) {
+            this.ctx.strokeStyle = '#0ff';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(this.player.x + this.player.width / 2, 
+                         this.player.y + this.player.height / 2, 
+                         30, 0, Math.PI * 2);
+            this.ctx.stroke();
+        }
+
+        // Draw tractor beam
+        if (this.tractorBeam) {
+            this.ctx.save();
+            this.ctx.strokeStyle = `rgba(0, 255, 255, ${this.tractorBeam.alpha})`;
+            this.ctx.lineWidth = this.tractorBeam.width;
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.tractorBeam.x, this.tractorBeam.y);
+            this.ctx.lineTo(this.tractorBeam.x, this.tractorBeam.y + this.tractorBeam.height);
+            this.ctx.stroke();
+            
+            // Draw zigzag pattern
+            this.ctx.beginPath();
+            let y = this.tractorBeam.y;
+            const width = 15;
+            while (y < this.tractorBeam.y + this.tractorBeam.height) {
+                this.ctx.moveTo(this.tractorBeam.x - width, y);
+                this.ctx.lineTo(this.tractorBeam.x + width, y + 10);
+                y += 20;
+            }
+            this.ctx.strokeStyle = `rgba(255, 255, 255, ${this.tractorBeam.alpha * 0.5})`;
+            this.ctx.stroke();
+            this.ctx.restore();
+        }
+
+        // Draw death animations with simple flash effect
+        this.deathAnimations.forEach(anim => {
+            this.ctx.save();
+            const alpha = 1 - (anim.frame / anim.maxFrames);
+            this.ctx.globalAlpha = alpha;
+            
+            // Draw simple flash
+            this.ctx.fillStyle = '#fff';  // White flash
+            this.ctx.beginPath();
+            this.ctx.arc(anim.x, anim.y, 15, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            this.ctx.restore();
+            
+            // Update animation frame
+            if (anim.timer % 2 === 0) {
+                anim.frame++;
+            }
+            anim.timer++;
+        });
+
+        // Filter out completed animations
+        this.deathAnimations = this.deathAnimations.filter(anim => anim.frame < anim.maxFrames);
+
+        // Draw attack indicators
+        this.ctx.save();
+        this.attackIndicators.forEach(indicator => {
+            this.ctx.strokeStyle = `rgba(255, 0, 0, ${indicator.alpha})`;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.moveTo(indicator.startX, indicator.startY);
+            this.ctx.lineTo(indicator.endX, indicator.endY);
+            this.ctx.stroke();
+            
+            // Draw arrow at end
+            this.ctx.save();
+            this.ctx.translate(indicator.endX, indicator.endY);
+            this.ctx.rotate(Math.atan2(indicator.endY - indicator.startY, indicator.endX - indicator.startX));
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, 0);
+            this.ctx.lineTo(-10, -5);
+            this.ctx.lineTo(-10, 5);
+            this.ctx.closePath();
+            this.ctx.fillStyle = `rgba(255, 0, 0, ${indicator.alpha})`;
+            this.ctx.fill();
+            this.ctx.restore();
+        });
+        this.ctx.restore();
+
+        // Draw wave transition
+        if (this.waveTransition.active) {
+            this.ctx.save();
+            this.ctx.fillStyle = `rgba(0, 0, 0, 0.7)`;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            this.ctx.font = '24px "Press Start 2P"';
+            this.ctx.fillStyle = '#fff';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(this.waveTransition.text, this.canvas.width / 2, this.canvas.height / 2);
+            
+            // Draw wave details
+            this.ctx.font = '12px "Press Start 2P"';
+            const config = this.waveConfig.getConfig(Math.min(this.wave, 5));
+            this.ctx.fillText(`ENEMIES: ${config.totalEnemies}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
+            this.ctx.fillText(`SPEED: ${config.speedMultiplier.toFixed(1)}x`, this.canvas.width / 2, this.canvas.height / 2 + 60);
+            this.ctx.fillText(`BOSSES: ${config.bossCount}`, this.canvas.width / 2, this.canvas.height / 2 + 80);
+            
+            this.ctx.restore();
+        }
+
+        // Draw wave completion effects
+        this.drawWaveCompletion();
+
+        // Draw current wave number
+        this.ctx.font = '8px "Press Start 2P"';
+        this.ctx.fillStyle = '#fff';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(`WAVE ${this.wave}`, this.canvas.width / 2, 20);
+
+        // Draw power-up collection effects
+        this.powerUpEffects.forEach(effect => {
+            this.ctx.save();
+            this.ctx.globalAlpha = effect.alpha;
+            this.ctx.fillStyle = effect.color;
+            this.ctx.font = '16px "Press Start 2P"';
+            this.ctx.textAlign = 'center';
+            this.ctx.translate(this.canvas.width/2, effect.y);
+            this.ctx.scale(effect.scale, effect.scale);
+            this.ctx.fillText(effect.message, 0, 0);
+            this.ctx.restore();
+        });
+
+        // Draw enhanced enemy bullets
+        this.enemyBullets.forEach(bullet => {
+            // Add warning trail effect
+            this.ctx.save();
+            this.ctx.strokeStyle = bullet.color;
+            this.ctx.lineWidth = 3;  // Thicker trail
+            this.ctx.globalAlpha = 0.3;
+            this.ctx.beginPath();
+            this.ctx.moveTo(bullet.x, bullet.y);
+            // Calculate trail end point based on bullet direction
+            const trailLength = 20;
+            this.ctx.lineTo(
+                bullet.x - (bullet.dx/bullet.speed) * trailLength, 
+                bullet.y - (bullet.dy/bullet.speed) * trailLength
+            );
             this.ctx.stroke();
             this.ctx.restore();
 
@@ -1914,6 +2242,36 @@ class Game {
 
     createPowerUp(x, y) {
         const type = Math.floor(Math.random() * Object.keys(this.powerUpTypes).length);
+        const powerUpSymbols = {
+            [this.powerUpTypes.DOUBLE_SHOT]: '2X',
+            [this.powerUpTypes.SPEED_UP]: '>>',
+            [this.powerUpTypes.SHIELD]: '⚡',
+            [this.powerUpTypes.EXTRA_LIFE]: '♥',
+            [this.powerUpTypes.PERMANENT_SPEED]: '∞S',
+            [this.powerUpTypes.PERMANENT_SHOT]: '∞2',
+            [this.powerUpTypes.BULLET_SPEED]: '→+',
+            [this.powerUpTypes.SMALL_SHIP]: '◊',
+            [this.powerUpTypes.DRONE]: '★',
+            [this.powerUpTypes.PERMANENT_BULLET]: '∞→',
+            [this.powerUpTypes.PERMANENT_SIZE]: '∞◊',
+            [this.powerUpTypes.PERMANENT_DRONE]: '∞★'
+        };
+        
+        const powerUpLabels = {
+            [this.powerUpTypes.DOUBLE_SHOT]: 'DOUBLE',
+            [this.powerUpTypes.SPEED_UP]: 'SPEED',
+            [this.powerUpTypes.SHIELD]: 'SHIELD',
+            [this.powerUpTypes.EXTRA_LIFE]: 'LIFE',
+            [this.powerUpTypes.PERMANENT_SPEED]: 'PERM SPEED',
+            [this.powerUpTypes.PERMANENT_SHOT]: 'PERM SHOT',
+            [this.powerUpTypes.BULLET_SPEED]: 'FAST SHOT',
+            [this.powerUpTypes.SMALL_SHIP]: 'SMALL',
+            [this.powerUpTypes.DRONE]: 'DRONE',
+            [this.powerUpTypes.PERMANENT_BULLET]: 'PERM FAST',
+            [this.powerUpTypes.PERMANENT_SIZE]: 'PERM SMALL',
+            [this.powerUpTypes.PERMANENT_DRONE]: 'PERM DRONE'
+        };
+
         this.powerUps.push({
             x: Math.min(Math.max(x, 20), this.canvas.width - 40),
             y: Math.min(Math.max(y, 20), this.canvas.height - 100),
@@ -1924,16 +2282,26 @@ class Game {
             health: 3,
             requiresShot: true,
             color: type === this.powerUpTypes.DOUBLE_SHOT ? '#0ff' :
-                   type === this.powerUpTypes.SPEED_UP ? '#0f0' : '#ff0'
+                   type === this.powerUpTypes.SPEED_UP ? '#0f0' :
+                   type === this.powerUpTypes.SHIELD ? '#ff0' :
+                   type === this.powerUpTypes.EXTRA_LIFE ? '#f00' :
+                   type === this.powerUpTypes.PERMANENT_SPEED ? '#f0f' :
+                   type === this.powerUpTypes.PERMANENT_SHOT ? '#00f' :
+                   type === this.powerUpTypes.BULLET_SPEED ? '#fa0' :
+                   type === this.powerUpTypes.SMALL_SHIP ? '#0fa' :
+                   type === this.powerUpTypes.DRONE ? '#a0f' :
+                   type === this.powerUpTypes.PERMANENT_BULLET ? '#f80' :
+                   type === this.powerUpTypes.PERMANENT_SIZE ? '#8ff' :
+                   '#f0a',
+            symbol: powerUpSymbols[type],
+            label: powerUpLabels[type]
         });
     }
 
     handlePowerUp(type) {
         this.sounds.powerupCollect.play();
-        
-        // Create collection effect
         this.createPowerUpEffect(type);
-        
+
         switch(type) {
             case this.powerUpTypes.DOUBLE_SHOT:
                 if (!this.playerPowerUps.permanentShot) {
@@ -2113,7 +2481,16 @@ class Game {
         this.playerPowerUps = {
             doubleShot: false,
             speedUp: false,
-            shield: false
+            shield: false,
+            bulletSpeed: false,
+            smallShip: false,
+            drone: false,
+            // Track stacks for permanent upgrades
+            permanentSpeedStacks: 0,
+            permanentShotStacks: 0,
+            permanentBulletStacks: 0,
+            permanentSizeStacks: 0,
+            permanentDroneStacks: 0
         };
         
         // Reset UI
@@ -2122,50 +2499,69 @@ class Game {
         this.enemyBullets = [];
     }
 
-    handleEnemyDestruction(enemy) {
-        // Handle boss damage
+    handleEnemyDestruction(enemy, bulletIndex) {
+        this.bullets.splice(bulletIndex, 1);
+        
         if (enemy.isMegaBoss) {
-            enemy.health--;
-            if (enemy.health <= 0) {
+            // Boss takes damage
+            this.bossConfig.currentHealth--;
+            if (this.bossConfig.currentHealth <= 0) {
+                // Create death animation
                 this.createDeathAnimation(
                     enemy.currentX + enemy.width/2, 
                     enemy.currentY + enemy.height/2,
                     enemy.type
                 );
-                enemy.currentX = -100;
-                this.score += 1000 * Math.floor(this.wave / 3);
+                
+                // Award score
+                const bossScore = 1000 * Math.floor(this.wave / 3);
+                this.score += bossScore;
                 document.getElementById('scoreValue').textContent = this.score;
+                
+                // Create power-up
                 this.createPowerUp(
                     enemy.currentX + enemy.width/2,
                     enemy.currentY + enemy.height/2
                 );
+                
+                // Clear all enemies
+                this.formations = this.formations.map(e => {
+                    e.currentX = -100;
+                    return e;
+                });
+                
                 this.sounds.explosion.play();
             } else {
+                // Hit effect for boss not destroyed
                 this.sounds.powerupHit.play();
             }
             return;
         }
-
+        
         // Regular enemy damage
         enemy.health--;
         if (enemy.health <= 0) {
+            // Create explosion effect
             this.createExplosion(
                 enemy.currentX + enemy.width/2,
                 enemy.currentY + enemy.height/2,
                 enemy.type
             );
             
+            // Create death animation
             this.createDeathAnimation(
                 enemy.currentX + enemy.width/2, 
                 enemy.currentY + enemy.height/2,
                 enemy.type
             );
             
+            // Remove enemy
             enemy.currentX = -100;
             enemy.currentY = -100;
             enemy.inPosition = false;
             enemy.attacking = false;
             
+            // Award score
             const baseScore = enemy.type === this.enemyTypes.BOSS ? 300 :
                              enemy.type === this.enemyTypes.ESCORT ? 200 : 100;
             const scoreMultiplier = 1 + (this.wave * 0.1);
@@ -2175,6 +2571,7 @@ class Game {
             this.sounds.explosion.play();
             this.waveStats.enemiesDefeated++;
         } else {
+            // Hit effect for enemy not destroyed
             this.sounds.powerupHit.play();
         }
     }
@@ -2208,38 +2605,46 @@ class Game {
     startAttack(enemy) {
         if (enemy.type !== this.enemyTypes.ESCORT) return;
         
-        // Increase max attackers and base them on wave
         const currentAttackers = this.formations.filter(e => e.attacking).length;
-        const maxAttackers = Math.min(4, Math.floor(1 + this.wave/2)); // Allow up to 4 attackers
+        const maxAttackers = Math.min(4, Math.floor(1 + this.wave/2));
         
         if (currentAttackers >= maxAttackers) return;
         
-        // Much higher base attack chance
-        const attackChance = 0.7 + (this.wave * 0.1); // Starts at 70%, increases by 10% per wave
+        const attackChance = 0.7 + (this.wave * 0.1);
         if (Math.random() > attackChance) return;
         
-        // Start attack immediately when in position
         if (enemy.inPosition) {
             enemy.attacking = true;
-            enemy.pattern = 'DIVE';
+            
+            // Random attack pattern selection
+            const patterns = ['DIVE', 'SWEEP', 'ZIGZAG'];
+            enemy.pattern = patterns[Math.floor(Math.random() * patterns.length)];
+            
             enemy.patternProgress = 0;
             enemy.patternStartX = enemy.currentX;
             enemy.patternStartY = enemy.currentY;
-            enemy.targetX = this.player.x;
+            
+            // Add some randomness to target position
+            const spreadX = 100; // pixels of horizontal spread
+            enemy.targetX = this.player.x + (Math.random() - 0.5) * spreadX;
             enemy.targetY = this.canvas.height + 50;
-            enemy.tracking = true;
+            
+            // Add random movement modifiers
+            enemy.amplitude = 50 + Math.random() * 50; // For zigzag/sweep patterns
+            enemy.frequency = 0.02 + Math.random() * 0.03; // Movement frequency
+            
+            enemy.tracking = Math.random() < 0.7; // 70% chance to track player
             enemy.canShoot = true;
             
             // Add attack indicator
             this.attackIndicators.push({
                 startX: enemy.currentX + enemy.width / 2,
                 startY: enemy.currentY + enemy.height / 2,
-                endX: this.player.x + this.player.width / 2,
+                endX: enemy.targetX + enemy.width / 2,
                 endY: this.canvas.height - 50,
                 alpha: 1
             });
             
-            // Add target indicator
             this.targetIndicators.push({
                 enemy: enemy,
                 alpha: 0,
@@ -2450,15 +2855,24 @@ class Game {
         return false;
     }
 
-    createPlayerBullet(x, y) {
+    createPlayerBullet(x, y, angle = 0) {
+        const baseSpeed = 7;
+        const speedBonus = this.playerPowerUps.bulletSpeed ? 2 : 0; // Reduced from 3
+        const stackBonus = Math.min(3, this.playerPowerUps.permanentBulletStacks * 0.3); // Cap stack bonus
+        const totalSpeed = baseSpeed + speedBonus + stackBonus;
+
         return {
             x: x,
             y: y,
-            width: this.bulletEffects.player.width,
-            height: this.bulletEffects.player.height,
-            speed: 7,
+            width: this.bulletEffects.player.width * 1.2,
+            height: this.bulletEffects.player.height * 1.2,
+            speed: totalSpeed,
+            dx: Math.sin(angle) * totalSpeed,
+            dy: -Math.cos(angle) * totalSpeed,
             trail: [],
-            color: this.bulletEffects.player.color
+            color: this.bulletEffects.player.color,
+            visualWidth: this.bulletEffects.player.width,
+            visualHeight: this.bulletEffects.player.height
         };
     }
 
@@ -2492,16 +2906,35 @@ class Game {
     }
 
     createEnemyBullet(enemy, angle) {
-        const speed = enemy.bulletSpeed;
+        const speed = Math.min(enemy.bulletSpeed, 4);
+        const isTracking = Math.random() < enemy.trackingChance;
+        
+        let dx, dy;
+        if (isTracking) {
+            // Calculate direction to player
+            const toPlayerX = this.player.x - enemy.currentX;
+            const toPlayerY = this.player.y - enemy.currentY;
+            const dist = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY);
+            dx = (toPlayerX / dist) * (speed * 0.7); // Slower tracking bullets
+            dy = (toPlayerY / dist) * (speed * 0.7);
+        } else {
+            dx = Math.cos(angle) * speed;
+            dy = Math.sin(angle) * speed;
+        }
+
         this.enemyBullets.push({
             x: enemy.currentX + enemy.width/2,
             y: enemy.currentY + enemy.height,
-            width: enemy.isMegaBoss ? 8 : 4,
-            height: enemy.isMegaBoss ? 12 : 8,
+            width: (enemy.isMegaBoss ? 6 : 4) * 1.2,
+            height: (enemy.isMegaBoss ? 8 : 6) * 1.2,
+            visualWidth: enemy.isMegaBoss ? 8 : 6,
+            visualHeight: enemy.isMegaBoss ? 10 : 8,
             speed: speed,
-            dx: Math.cos(angle) * speed,
-            dy: Math.sin(angle) * speed,
-            color: enemy.isMegaBoss ? '#f00' : '#ff0'
+            dx: dx,
+            dy: dy,
+            color: isTracking ? '#f0f' : (enemy.isMegaBoss ? '#f00' : '#ff0'), // Purple for tracking bullets
+            trail: [],
+            isTracking: isTracking
         });
     }
 
