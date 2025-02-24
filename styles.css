@@ -1,20 +1,10 @@
-/* Update color scheme to use more earth tones and environmental colors */
-:root {
-    --primary-green: #4CAF50;
-    --forest-green: #2E7D32;
-    --earth-brown: #795548;
-    --water-blue: #1976D2;
-    --sky-blue: #03A9F4;
-    --leaf-green: #8BC34A;
-}
-
 body {
     margin: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: var(--forest-green);
+    background-color: #000;
 }
 
 .game-container {
@@ -68,8 +58,8 @@ canvas {
 
 .overlay h1 {
     font-size: 36px;
-    color: var(--primary-green);
-    text-shadow: 0 0 10px var(--primary-green);
+    color: #f00;
+    text-shadow: 0 0 10px #f00;
     margin-bottom: 30px;
 }
 
@@ -93,8 +83,8 @@ canvas {
 }
 
 .high-score {
-    color: var(--leaf-green);
-    text-shadow: 0 0 10px var(--leaf-green);
+    color: #ff0;
+    text-shadow: 0 0 10px #ff0;
 }
 
 .high-score:empty {
@@ -285,8 +275,8 @@ canvas {
 
 .galaga-logo {
     font-size: 36px;
-    color: var(--primary-green);
-    text-shadow: 0 0 20px var(--primary-green);
+    color: #f00;
+    text-shadow: 0 0 20px #f00;
     animation: pulse 2s ease-in-out infinite;
     text-align: center;
     width: 100%;
@@ -297,10 +287,10 @@ canvas {
 
 .credit-text {
     font-size: 12px;
-    color: var(--leaf-green);
+    color: #f00;
     margin-top: -10px;
     margin-bottom: 30px;
-    text-shadow: 0 0 10px var(--leaf-green);
+    text-shadow: 0 0 10px #f00;
     animation: pulse 2s ease-in-out infinite;
     font-weight: bold;
 }
@@ -312,9 +302,9 @@ canvas {
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); text-shadow: 0 0 20px var(--primary-green); }
-    50% { transform: scale(1.1); text-shadow: 0 0 40px var(--primary-green); }
-    100% { transform: scale(1); text-shadow: 0 0 20px var(--primary-green); }
+    0% { transform: scale(1); text-shadow: 0 0 20px #f00; }
+    50% { transform: scale(1.1); text-shadow: 0 0 40px #f00; }
+    100% { transform: scale(1); text-shadow: 0 0 20px #f00; }
 }
 
 @keyframes pulse-fade {
