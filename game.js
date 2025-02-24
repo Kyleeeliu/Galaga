@@ -424,6 +424,10 @@ class Game {
         this.droneCooldown = 0;
         this.droneReloadTime = 120; // 2 seconds at 60fps
         
+        this.title = "EcoGalaga";
+        this.backgroundColor = "#1a472a";  // Dark green background
+        this.textColor = "#90EE90";  // Light green text
+        
         this.init();
     }
     
@@ -2101,137 +2105,30 @@ class Game {
             this.drawDrone();
             this.ctx.restore();
         }
+
+        const playerSprite = "🌱";  // Plant emoji as player sprite
+        this.ctx.font = "24px Arial";
+        this.ctx.fillText(playerSprite, this.player.x, this.player.y);
     }
 
     drawEnemy(enemy) {
-        this.ctx.save();
-        this.ctx.translate(enemy.currentX + enemy.width / 2, enemy.currentY + enemy.height / 2);
+        // Draw the emoji sprite
+        this.ctx.font = enemy.type === this.enemyTypes.BOSS ? "32px Arial" : "24px Arial";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
         
-        if (enemy.attacking) {
-            const rotation = this.rotationAngles.get(enemy) || 0;
-            this.ctx.rotate(rotation);
-        }
-
-        if (enemy.type === this.enemyTypes.BOSS) {
-            this.drawBossEnemy(enemy.animationFrame);
-        } else if (enemy.type === this.enemyTypes.ESCORT) {
-            this.drawEscortEnemy(enemy.animationFrame);
-        } else {
-            this.drawGruntEnemy(enemy.animationFrame);
-        }
+        // Add glow effect for environmental hazards
+        this.ctx.shadowColor = "#90EE90";  // Green glow
+        this.ctx.shadowBlur = 10;
         
-        this.ctx.restore();
-    }
-
-    drawBossEnemy(frame) {
-        // Aircraft carrier/starship design facing down
-        const scale = this.isMegaBoss ? 4.5 : 1;  // Increased mega boss scale to 4.5x
+        const x = enemy.currentX + enemy.width / 2;
+        const y = enemy.currentY + enemy.height / 2;
         
-        // Main hull (gradient effect)
-        const gradient = this.ctx.createLinearGradient(0, -16 * scale, 0, 16 * scale);
-        gradient.addColorStop(0, '#555');
-        gradient.addColorStop(1, '#333');
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(-10 * scale, -16 * scale, 20 * scale, 32 * scale);
+        // Draw the sprite
+        this.ctx.fillText(enemy.sprite, x, y);
         
-        // Armor plating details
-        this.ctx.fillStyle = '#444';
-        for (let i = -12; i <= 12; i += 4) {
-            this.ctx.fillRect(i * scale, -14 * scale, 2 * scale, 28 * scale);
-        }
-        
-        // Command tower with windows
-        this.ctx.fillStyle = '#666';
-        this.ctx.fillRect(-6 * scale, -10 * scale, 12 * scale, 14 * scale);
-        this.ctx.fillStyle = '#88f';
-        this.ctx.fillRect(-4 * scale, -8 * scale, 8 * scale, 2 * scale);
-        
-        // Flight deck with detailed markings
-        this.ctx.fillStyle = '#800';
-        this.ctx.fillRect(-14 * scale, 0 * scale, 28 * scale, 16 * scale);
-        
-        // Runway lights (blinking)
-        this.ctx.fillStyle = frame % 4 < 2 ? '#ff0' : '#880';
-        for (let i = -12; i <= 12; i += 4) {
-            this.ctx.fillRect(i * scale, 2 * scale, 2 * scale, 2 * scale);
-            this.ctx.fillRect(i * scale, 8 * scale, 2 * scale, 2 * scale);
-            this.ctx.fillRect(i * scale, 14 * scale, 2 * scale, 2 * scale);
-        }
-        
-        // Side cannons with energy glow
-        this.ctx.fillStyle = '#006';
-        this.ctx.fillRect(-16 * scale, -6 * scale, 6 * scale, 12 * scale);
-        this.ctx.fillRect(10 * scale, -6 * scale, 6 * scale, 12 * scale);
-        
-        // Energy glow on cannon tips (pulsing)
-        const glowIntensity = Math.sin(Date.now() / 200) * 0.5 + 0.5;
-        this.ctx.fillStyle = `rgba(0, 128, 255, ${glowIntensity})`;
-        this.ctx.fillRect(-16 * scale, -2 * scale, 6 * scale, 4 * scale);
-        this.ctx.fillRect(10 * scale, -2 * scale, 6 * scale, 4 * scale);
-        
-        // Engine exhausts with animated glow
-        const engineGlow = Math.sin(Date.now() / 100) * 0.3 + 0.7;
-        const engineColor = frame % 2 ? 
-            `rgba(255, 128, 0, ${engineGlow})` : 
-            `rgba(255, 200, 0, ${engineGlow})`;
-        this.ctx.fillStyle = engineColor;
-        this.ctx.fillRect(-8 * scale, -18 * scale, 16 * scale, 4 * scale);
-        this.ctx.fillRect(-12 * scale, -16 * scale, 4 * scale, 2 * scale);
-        this.ctx.fillRect(8 * scale, -16 * scale, 4 * scale, 2 * scale);
-    }
-
-    drawEscortEnemy(frame) {
-        // Escort ship model facing down (green/white theme)
-        // Main body
-        this.ctx.fillStyle = '#0c0';
-        this.ctx.fillRect(-1, 8, 2, 4);    // Bottom thin part
-        this.ctx.fillRect(-3, -8, 6, 16);  // Center body
-        this.ctx.fillRect(-6, -8, 12, 8);  // Wide top
-        
-        // White accents
-        this.ctx.fillStyle = '#fff';
-        this.ctx.fillRect(-4, -8, 2, 12);  // Left stripe
-        this.ctx.fillRect(2, -8, 2, 12);   // Right stripe
-        this.ctx.fillRect(-8, -8, 2, 4);   // Left wing tip
-        this.ctx.fillRect(6, -8, 2, 4);    // Right wing tip
-        
-        // Energy details (animated)
-        const glowIntensity = Math.sin(Date.now() / 200) * 0.3 + 0.7;
-        this.ctx.fillStyle = frame % 2 ? '#0f0' : '#0a0';
-        this.ctx.fillRect(-2, 4, 4, 4);    // Bottom section
-        this.ctx.fillRect(-6, -8, 2, 4);   // Left wing
-        this.ctx.fillRect(4, -8, 2, 4);    // Right wing
-        
-        // Engine glow
-        this.ctx.fillStyle = `rgba(0, 255, 0, ${glowIntensity})`;
-        this.ctx.fillRect(-2, -12, 4, 4);  // Engine exhaust at top
-    }
-
-    drawGruntEnemy(frame) {
-        // Grunt ship model facing down (blue/cyan theme)
-        // Main body
-        this.ctx.fillStyle = '#00f';
-        this.ctx.fillRect(-1, 8, 2, 4);    // Bottom thin part
-        this.ctx.fillRect(-3, -8, 6, 16);  // Center body
-        this.ctx.fillRect(-6, -8, 12, 8);  // Wide top
-        
-        // Cyan accents
-        this.ctx.fillStyle = '#0ff';
-        this.ctx.fillRect(-4, -8, 2, 12);  // Left stripe
-        this.ctx.fillRect(2, -8, 2, 12);   // Right stripe
-        this.ctx.fillRect(-8, -8, 2, 4);   // Left wing tip
-        this.ctx.fillRect(6, -8, 2, 4);    // Right wing tip
-        
-        // Energy details (animated)
-        const glowIntensity = Math.sin(Date.now() / 200) * 0.3 + 0.7;
-        this.ctx.fillStyle = frame % 2 ? '#00f' : '#008';
-        this.ctx.fillRect(-2, 4, 4, 4);    // Bottom section
-        this.ctx.fillRect(-6, -8, 2, 4);   // Left wing
-        this.ctx.fillRect(4, -8, 2, 4);    // Right wing
-        
-        // Engine glow
-        this.ctx.fillStyle = `rgba(0, 128, 255, ${glowIntensity})`;
-        this.ctx.fillRect(-2, -12, 4, 4);  // Engine exhaust at top
+        // Reset shadow
+        this.ctx.shadowBlur = 0;
     }
     
     gameLoop() {
@@ -3086,6 +2983,71 @@ class Game {
             scale: 0,
             y: this.player.y
         });
+    }
+
+    createEnemies() {
+        const enemyTypes = [
+            // Boss enemies (row 0)
+            { sprite: "🏭", points: 30, speed: 1.2, name: "Factory" },     // Polluting factory
+            
+            // Mid-tier enemies (row 1)
+            { sprite: "🚗", points: 20, speed: 1.1, name: "Car" },         // Vehicle emissions
+            { sprite: "⛽", points: 20, speed: 1.0, name: "Oil" },         // Fossil fuels
+            { sprite: "🗑️", points: 20, speed: 1.0, name: "Waste" },       // Waste
+            
+            // Basic enemies (row 2)
+            { sprite: "💨", points: 10, speed: 0.9, name: "CO2" },         // Carbon emissions
+            { sprite: "☢️", points: 10, speed: 0.8, name: "Toxic" },       // Toxic waste
+            { sprite: "🌫️", points: 10, speed: 0.8, name: "Smog" }        // Air pollution
+        ];
+
+        // Create enemy formation
+        for (let row = 0; row < 3; row++) {
+            for (let col = 0; col < 8; col++) {
+                let enemyType;
+                if (row === 0) {
+                    // Boss row - only factories
+                    enemyType = enemyTypes[0];
+                } else if (row === 1) {
+                    // Mid-tier row - cars, oil, and waste
+                    enemyType = enemyTypes[1 + (col % 3)];
+                } else {
+                    // Bottom row - CO2, toxic waste, and smog
+                    enemyType = enemyTypes[4 + (col % 3)];
+                }
+
+                const enemy = new Enemy(
+                    col * 60 + 50,
+                    row * 50 + 50,
+                    enemyType.sprite,
+                    enemyType.points,
+                    enemyType.speed,
+                    enemyType.name
+                );
+                this.enemies.push(enemy);
+            }
+        }
+    }
+
+    drawProjectile(projectile) {
+        const projectileSprite = "💧";  // Water drop as projectile
+        this.ctx.font = "16px Arial";
+        this.ctx.fillText(projectileSprite, projectile.x, projectile.y);
+    }
+
+    drawGameOver() {
+        this.ctx.fillStyle = this.textColor;
+        this.ctx.font = "48px Arial";
+        this.ctx.fillText("Game Over", this.canvas.width / 2 - 100, this.canvas.height / 2);
+        this.ctx.font = "24px Arial";
+        this.ctx.fillText("Earth needs your help! Press Space to try again", 
+            this.canvas.width / 2 - 200, this.canvas.height / 2 + 50);
+    }
+
+    drawScore() {
+        this.ctx.fillStyle = this.textColor;
+        this.ctx.font = "20px Arial";
+        this.ctx.fillText(`Environmental Impact: ${this.score}`, 10, 30);
     }
 }
 

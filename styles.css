@@ -58,8 +58,8 @@ canvas {
 
 .overlay h1 {
     font-size: 36px;
-    color: #f00;
-    text-shadow: 0 0 10px #f00;
+    color: #90EE90;
+    text-shadow: 0 0 10px #90EE90;
     margin-bottom: 30px;
 }
 
@@ -79,12 +79,12 @@ canvas {
 
 .difficulty-option.selected {
     color: #fff;
-    text-shadow: 0 0 10px #0ff;
+    text-shadow: 0 0 10px #90EE90;
 }
 
 .high-score {
-    color: #ff0;
-    text-shadow: 0 0 10px #ff0;
+    color: #90EE90;
+    text-shadow: 0 0 10px #90EE90;
 }
 
 .high-score:empty {
@@ -128,7 +128,7 @@ canvas {
 
 .difficulty-option:hover {
     color: #fff;
-    text-shadow: 0 0 10px #0ff;
+    text-shadow: 0 0 10px #90EE90;
     transform: scale(1.1);
 }
 
@@ -171,7 +171,7 @@ canvas {
 .tab-btn.selected {
     color: #fff;
     border-color: #fff;
-    text-shadow: 0 0 10px #0ff;
+    text-shadow: 0 0 10px #90EE90;
 }
 
 .leaderboard-entries {
@@ -195,7 +195,7 @@ canvas {
 }
 
 .entry-rank {
-    color: #ff0;
+    color: #90EE90;
     width: 30px;
 }
 
@@ -206,7 +206,7 @@ canvas {
 }
 
 .entry-score {
-    color: #0ff;
+    color: #90EE90;
 }
 
 .entry-date {
@@ -257,8 +257,8 @@ canvas {
 
 .name-input:focus {
     outline: none;
-    border-color: #0ff;
-    box-shadow: 0 0 10px #0ff;
+    border-color: #90EE90;
+    box-shadow: 0 0 10px #90EE90;
 }
 
 .logo-container {
@@ -275,8 +275,8 @@ canvas {
 
 .galaga-logo {
     font-size: 36px;
-    color: #f00;
-    text-shadow: 0 0 20px #f00;
+    color: #90EE90;
+    text-shadow: 0 0 20px #90EE90;
     animation: pulse 2s ease-in-out infinite;
     text-align: center;
     width: 100%;
@@ -287,10 +287,10 @@ canvas {
 
 .credit-text {
     font-size: 12px;
-    color: #f00;
+    color: #90EE90;
     margin-top: -10px;
     margin-bottom: 30px;
-    text-shadow: 0 0 10px #f00;
+    text-shadow: 0 0 10px #90EE90;
     animation: pulse 2s ease-in-out infinite;
     font-weight: bold;
 }
@@ -302,9 +302,9 @@ canvas {
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); text-shadow: 0 0 20px #f00; }
-    50% { transform: scale(1.1); text-shadow: 0 0 40px #f00; }
-    100% { transform: scale(1); text-shadow: 0 0 20px #f00; }
+    0% { transform: scale(1); text-shadow: 0 0 20px #90EE90; }
+    50% { transform: scale(1.1); text-shadow: 0 0 40px #90EE90; }
+    100% { transform: scale(1); text-shadow: 0 0 20px #90EE90; }
 }
 
 @keyframes pulse-fade {
@@ -317,8 +317,8 @@ canvas {
     position: absolute;
     bottom: 40px;
     font-size: 12px;
-    color: #ff0;
-    text-shadow: 0 0 10px #ff0;
+    color: #90EE90;
+    text-shadow: 0 0 10px #90EE90;
     animation: pulse-fade 2s ease-in-out infinite;
 }
 
