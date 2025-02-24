@@ -1032,29 +1032,31 @@ class Game {
             }
         });
 
-        // Update enemy bullets and check for collisions
-        this.enemyBullets = this.enemyBullets.filter((bullet, index) => {
-            if (bullet.dx !== undefined) {
-                // Move bullets according to their angle
-                bullet.x += bullet.dx;
-                bullet.y += bullet.dy;
-            } else {
-                // Regular straight-down movement for normal enemies
-                bullet.y += bullet.speed;
+        // Update bullet collisions with enemies
+        this.bullets = this.bullets.filter((bullet, bulletIndex) => {
+            let bulletHit = false;
+            
+            // Move bullet
+            bullet.y -= bullet.speed;
+            
+            // Update bullet trail
+            if (this.bulletEffects.player.trail) {
+                bullet.trail.unshift({ x: bullet.x, y: bullet.y });
+                if (bullet.trail.length > this.bulletEffects.player.tailLength) {
+                    bullet.trail.pop();
+                }
             }
             
-            // Remove bullets that are off screen
-            if (bullet.y > this.canvas.height || bullet.x < 0 || bullet.x > this.canvas.width) {
-                return false;
+            // Check collisions with enemies
+            for (let enemy of this.formations) {
+                if (!bulletHit && enemy.currentX > -50 && this.checkCollision(bullet, enemy)) {
+                    this.handleEnemyDestruction(enemy);
+                    bulletHit = true;
+                }
             }
             
-            // Check collision with player
-            if (!this.player.invulnerable && this.checkCollision(bullet, this.player)) {
-                this.playerHit();
-                return false;
-            }
-            
-            return true;
+            // Keep bullet if it's still on screen and hasn't hit anything
+            return !bulletHit && bullet.y > 0;
         });
 
         // Update bullet collisions with power-ups
@@ -1106,65 +1108,6 @@ class Game {
         } else {
             this.shooting = false;
         }
-
-        // Update bullets
-        this.bullets.forEach((bullet, index) => {
-            bullet.y -= bullet.speed;
-            
-            // Update bullet trail
-            if (this.bulletEffects.player.trail) {
-                bullet.trail.unshift({ x: bullet.x, y: bullet.y });
-                if (bullet.trail.length > this.bulletEffects.player.tailLength) {
-                    bullet.trail.pop();
-                }
-            }
-            
-            // Remove bullets that are off screen
-            if (bullet.y < 0) {
-                this.bullets.splice(index, 1);
-                return;
-            }
-        });
-
-        // Update bullet collisions with enemies
-        this.bullets.forEach((bullet, bulletIndex) => {
-            this.formations.forEach((enemy, enemyIndex) => {
-                // Only check collisions for active enemies
-                if (enemy.currentX > -50 && this.checkCollision(bullet, enemy)) {
-                    this.handleEnemyDestruction(enemy, bulletIndex);
-                    return;  // Exit after handling destruction
-                }
-            });
-        });
-
-        // Update formations with smooth path following
-        this.formations.forEach(enemy => {
-            if (enemy.currentX <= -50) return;  // Skip destroyed enemies
-
-            if (!enemy.inPosition && enemy.path) {
-                // Use quadratic bezier curve for smooth movement
-                enemy.pathProgress = Math.min(1, enemy.pathProgress + 0.01);
-                const t = enemy.pathProgress;
-                const p0x = enemy.path.startX;
-                const p0y = enemy.path.startY;
-                const p1x = enemy.path.controlX;
-                const p1y = enemy.path.controlY;
-                const p2x = enemy.targetX;
-                const p2y = enemy.targetY;
-                
-                // Quadratic bezier curve calculation
-                enemy.currentX = Math.pow(1-t, 2) * p0x + 2 * (1-t) * t * p1x + Math.pow(t, 2) * p2x;
-                enemy.currentY = Math.pow(1-t, 2) * p0y + 2 * (1-t) * t * p1y + Math.pow(t, 2) * p2y;
-                
-                if (enemy.pathProgress >= 1) {
-                    enemy.inPosition = true;
-                }
-            } else if (enemy.inPosition && !enemy.attacking) {
-                // Gentle swaying motion when in formation
-                enemy.currentX = enemy.targetX + Math.sin(Date.now() / 2000) * 10;
-            }
-            // ... rest of enemy update code ...
-        });
 
         // Update stars movement
         this.stars.forEach(star => {
@@ -1361,21 +1304,104 @@ class Game {
                 }
             }
         });
+
+        // Add this to the update method, after the shooting code:
+        // Update enemy bullets and check for collisions
+        this.enemyBullets = this.enemyBullets.filter((bullet) => {
+            if (bullet.dx !== undefined) {
+                bullet.x += bullet.dx;
+                bullet.y += bullet.dy;
+            } else {
+                bullet.y += bullet.speed;
+            }
+            
+            // Remove bullets that are off screen
+            if (bullet.y > this.canvas.height || bullet.x < 0 || bullet.x > this.canvas.width) {
+                return false;
+            }
+            
+            // Check collision with player
+            if (!this.player.invulnerable && this.checkCollision(bullet, this.player)) {
+                this.playerHit();
+                return false;
+            }
+            
+            return true;
+        });
+
+        // Update formations with smooth path following
+        this.formations.forEach(enemy => {
+            if (enemy.currentX <= -50) return;  // Skip destroyed enemies
+
+            if (!enemy.inPosition && enemy.path) {
+                // Use quadratic bezier curve for smooth movement
+                enemy.pathProgress = Math.min(1, enemy.pathProgress + 0.01);
+                const t = enemy.pathProgress;
+                const p0x = enemy.path.startX;
+                const p0y = enemy.path.startY;
+                const p1x = enemy.path.controlX;
+                const p1y = enemy.path.controlY;
+                const p2x = enemy.targetX;
+                const p2y = enemy.targetY;
+                
+                // Quadratic bezier curve calculation
+                enemy.currentX = Math.pow(1-t, 2) * p0x + 2 * (1-t) * t * p1x + Math.pow(t, 2) * p2x;
+                enemy.currentY = Math.pow(1-t, 2) * p0y + 2 * (1-t) * t * p1y + Math.pow(t, 2) * p2y;
+                
+                if (enemy.pathProgress >= 1) {
+                    enemy.inPosition = true;
+                }
+            } else if (enemy.inPosition && !enemy.attacking) {
+                // Gentle swaying motion when in formation
+                enemy.currentX = enemy.targetX + Math.sin(Date.now() / 2000) * 10;
+            }
+        });
+
+        // Update attacking enemies
+        this.formations.forEach(enemy => {
+            if (enemy.attacking) {
+                if (enemy.isMegaBoss) {
+                    // Boss stays in position but can shoot
+                    const dx = enemy.targetX - enemy.currentX;
+                    const moveSpeed = 1;
+                    
+                    // Gentle side-to-side movement
+                    enemy.currentX += Math.sin(Date.now() / 1000) * moveSpeed;
+                    
+                    // Keep boss within screen bounds
+                    enemy.currentX = Math.max(enemy.width/2, Math.min(this.canvas.width - enemy.width/2, enemy.currentX));
+                } else {
+                    // Regular enemy diving attack
+                    const speed = 3;
+                    const dx = enemy.targetX - enemy.currentX;
+                    const dy = enemy.targetY - enemy.currentY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > speed) {
+                        enemy.currentX += (dx / distance) * speed;
+                        enemy.currentY += (dy / distance) * speed;
+                    } else {
+                        enemy.currentX = -100; // Move off screen when done
+                    }
+                }
+            }
+        });
     }
     
     checkCollision(rect1, rect2) {
-        // For bullets, use their direct x,y coordinates
         const r1x = rect1.x - (rect1.width / 2);
         const r1y = rect1.y;
-        
-        // For enemies and other objects, use their current positions
         const r2x = rect2.currentX || rect2.x;
         const r2y = rect2.currentY || rect2.y;
+        const r1w = rect1.width;
+        const r1h = rect1.height;
+        const r2w = rect2.width;
+        const r2h = rect2.height;
 
-        return r1x < (r2x + rect2.width) &&
-               (r1x + rect1.width) > r2x &&
-               r1y < (r2y + rect2.height) &&
-               (r1y + rect1.height) > r2y;
+        return r1x < (r2x + r2w) &&
+               (r1x + r1w) > r2x &&
+               r1y < (r2y + r2h) &&
+               (r1y + r1h) > r2y;
     }
     
     draw() {
@@ -2096,69 +2122,50 @@ class Game {
         this.enemyBullets = [];
     }
 
-    handleEnemyDestruction(enemy, bulletIndex) {
-        this.bullets.splice(bulletIndex, 1);
-        
+    handleEnemyDestruction(enemy) {
+        // Handle boss damage
         if (enemy.isMegaBoss) {
-            // Boss takes damage
-            this.bossConfig.currentHealth--;
-            if (this.bossConfig.currentHealth <= 0) {
-                // Create death animation
+            enemy.health--;
+            if (enemy.health <= 0) {
                 this.createDeathAnimation(
                     enemy.currentX + enemy.width/2, 
                     enemy.currentY + enemy.height/2,
                     enemy.type
                 );
-                
-                // Award score
-                const bossScore = 1000 * Math.floor(this.wave / 3);
-                this.score += bossScore;
+                enemy.currentX = -100;
+                this.score += 1000 * Math.floor(this.wave / 3);
                 document.getElementById('scoreValue').textContent = this.score;
-                
-                // Create power-up
                 this.createPowerUp(
                     enemy.currentX + enemy.width/2,
                     enemy.currentY + enemy.height/2
                 );
-                
-                // Clear all enemies
-                this.formations = this.formations.map(e => {
-                    e.currentX = -100;
-                    return e;
-                });
-                
                 this.sounds.explosion.play();
             } else {
-                // Hit effect for boss not destroyed
                 this.sounds.powerupHit.play();
             }
             return;
         }
-        
+
         // Regular enemy damage
         enemy.health--;
         if (enemy.health <= 0) {
-            // Create explosion effect
             this.createExplosion(
                 enemy.currentX + enemy.width/2,
                 enemy.currentY + enemy.height/2,
                 enemy.type
             );
             
-            // Create death animation
             this.createDeathAnimation(
                 enemy.currentX + enemy.width/2, 
                 enemy.currentY + enemy.height/2,
                 enemy.type
             );
             
-            // Remove enemy
             enemy.currentX = -100;
             enemy.currentY = -100;
             enemy.inPosition = false;
             enemy.attacking = false;
             
-            // Award score
             const baseScore = enemy.type === this.enemyTypes.BOSS ? 300 :
                              enemy.type === this.enemyTypes.ESCORT ? 200 : 100;
             const scoreMultiplier = 1 + (this.wave * 0.1);
@@ -2168,7 +2175,6 @@ class Game {
             this.sounds.explosion.play();
             this.waveStats.enemiesDefeated++;
         } else {
-            // Hit effect for enemy not destroyed
             this.sounds.powerupHit.play();
         }
     }
