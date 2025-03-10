@@ -13,10 +13,20 @@
         <div class="score">Score: <span id="scoreValue">0</span></div>
         <div class="lives">Lives: <span id="livesValue">3</span></div>
         <div id="gameOverScreen" class="overlay hidden">
-            <h1>GAME OVER</h1>
-            <p>Score: <span class="final-score">0</span></p>
-            <p class="high-score"></p>
-            <p>Press SPACE or Tap to Return</p>
+            <div class="game-over-container">
+                <h1>GAME OVER</h1>
+                <div class="score-display">
+                    <div class="final-score-label">FINAL SCORE</div>
+                    <div class="final-score">0</div>
+                </div>
+                <div class="high-score-display">
+                    <div class="high-score"></div>
+                </div>
+                <div class="restart-prompt">
+                    <span class="key-prompt">SPACE</span>
+                    <span class="action-text">TO RESTART</span>
+                </div>
+            </div>
         </div>
         <div id="startScreen" class="overlay">
             <div class="logo-container">
@@ -47,7 +57,6 @@
             </div>
             <div class="start-high-score">HIGH SCORE: <span>0</span></div>
         </div>
-        <div id="soundToggle" class="sound-toggle">🔊</div>
     </div>
     <script src="game.js"></script>
 </body>

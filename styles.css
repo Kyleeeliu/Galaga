@@ -414,19 +414,11 @@ canvas {
 }
 
 .sound-toggle {
-    position: absolute;
-    top: 10px;
-    right: 80px;
-    font-size: 16px;
-    color: #fff;
-    cursor: pointer;
-    z-index: 1000;
-    padding: 5px;
-    user-select: none;
+    display: none;
 }
 
 .sound-toggle.muted {
-    color: #666;
+    display: none;
 }
 
 /* Mobile Optimizations */
@@ -478,5 +470,134 @@ canvas {
     
     .controls-divider {
         margin: 10px 0;
+    }
+}
+
+.game-over-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 30px;
+    background: rgba(0, 0, 50, 0.95);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    border-radius: 15px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.game-over-container h1 {
+    font-size: 36px;
+    color: #f00;
+    text-shadow: 0 0 20px #f00;
+    margin: 0;
+    animation: pulseRed 2s infinite;
+}
+
+@keyframes pulseRed {
+    0% { text-shadow: 0 0 20px #f00; }
+    50% { text-shadow: 0 0 40px #f00; }
+    100% { text-shadow: 0 0 20px #f00; }
+}
+
+.score-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.final-score-label {
+    font-size: 14px;
+    color: #0ff;
+    text-shadow: 0 0 10px #0ff;
+    opacity: 0.8;
+}
+
+.final-score {
+    font-size: 32px;
+    color: #fff;
+    text-shadow: 0 0 15px #fff;
+    animation: pulseBright 2s infinite;
+}
+
+@keyframes pulseBright {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
+}
+
+.high-score-display {
+    padding: 10px 20px;
+    border-radius: 10px;
+    background: rgba(255, 255, 0, 0.1);
+}
+
+.high-score {
+    color: #ff0;
+    text-shadow: 0 0 10px #ff0;
+    font-size: 14px;
+}
+
+.restart-prompt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    animation: pulse-fade 2s infinite;
+}
+
+.key-prompt {
+    padding: 5px 10px;
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 5px;
+    color: #0ff;
+    font-size: 12px;
+}
+
+.action-text {
+    color: #fff;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Mobile Optimizations for Game Over Screen */
+@media (max-width: 768px) {
+    .game-over-container {
+        padding: 20px;
+        gap: 15px;
+    }
+
+    .game-over-container h1 {
+        font-size: 28px;
+    }
+
+    .final-score-label {
+        font-size: 12px;
+    }
+
+    .final-score {
+        font-size: 24px;
+    }
+
+    .high-score {
+        font-size: 12px;
+    }
+
+    .restart-prompt {
+        font-size: 10px;
     }
 } 
