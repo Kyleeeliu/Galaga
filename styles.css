@@ -5,18 +5,23 @@ body {
     align-items: center;
     min-height: 100vh;
     background-color: #000;
+    touch-action: none; /* Prevents default touch behaviors */
 }
 
 .game-container {
     position: relative;
-    width: 400px;
-    height: 600px;
-    display: inline-block;  /* Allow debug panel to sit beside it */
+    width: 100%;
+    max-width: 400px;
+    height: 100vh;
+    max-height: 600px;
+    display: inline-block;
 }
 
 canvas {
     border: 2px solid #fff;
     display: block;
+    width: 100%;
+    height: 100%;
 }
 
 .score, .lives {
@@ -57,7 +62,7 @@ canvas {
 }
 
 .overlay h1 {
-    font-size: 36px;
+    font-size: clamp(24px, 5vw, 36px);
     color: #f00;
     text-shadow: 0 0 10px #f00;
     margin-bottom: 30px;
@@ -273,38 +278,41 @@ canvas {
     animation-delay: 0s;
 }
 
-.galaga-logo {
+.game-logo {
     font-size: 36px;
-    color: #f00;
-    text-shadow: 0 0 20px #f00;
+    color: #0ff;
+    text-shadow: 0 0 20px #0ff;
     animation: pulse 2s ease-in-out infinite;
     text-align: center;
     width: 100%;
-    margin: 0;
+    margin: 0 0 10px 0;
     padding: 0;
     line-height: 1.2;
 }
 
 .credit-text {
     font-size: 12px;
-    color: #f00;
-    margin-top: -10px;
-    margin-bottom: 30px;
-    text-shadow: 0 0 10px #f00;
-    animation: pulse 2s ease-in-out infinite;
-    font-weight: bold;
+    color: #0ff;
+    margin-top: 5px;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px #0ff;
+    opacity: 0.8;
 }
 
 .click-prompt {
-    font-size: 12px;
+    font-size: 14px;
     color: #fff;
     animation: pulse-fade 2s ease-in-out infinite;
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: rgba(0, 255, 255, 0.1);
+    border-radius: 20px;
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); text-shadow: 0 0 20px #f00; }
-    50% { transform: scale(1.1); text-shadow: 0 0 40px #f00; }
-    100% { transform: scale(1); text-shadow: 0 0 20px #f00; }
+    0% { transform: scale(1); text-shadow: 0 0 20px #00f; }
+    50% { transform: scale(1.1); text-shadow: 0 0 40px #00f; }
+    100% { transform: scale(1); text-shadow: 0 0 20px #00f; }
 }
 
 @keyframes pulse-fade {
@@ -346,4 +354,129 @@ canvas {
 /* Add different colors for each ship */
 .ship1 .ship-sprite::before { background: #0f0; }  /* Green */
 .ship2 .ship-sprite::before { background: #00f; }  /* Blue */
-.ship3 .ship-sprite::before { background: #f00; }  /* Red */ 
+.ship3 .ship-sprite::before { background: #f00; }  /* Red */
+
+.controls-info {
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(0, 0, 50, 0.3);
+    border-radius: 10px;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    max-width: 280px;
+}
+
+.controls-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin: 10px 0;
+    font-size: 12px;
+}
+
+.control-key {
+    color: #0ff;
+    text-shadow: 0 0 5px #0ff;
+    font-weight: bold;
+    min-width: 60px;
+    text-align: right;
+}
+
+.control-desc {
+    color: #fff;
+    text-align: left;
+}
+
+.controls-divider {
+    color: #666;
+    margin: 15px 0;
+    font-size: 10px;
+    position: relative;
+    text-align: center;
+}
+
+.controls-divider::before,
+.controls-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 40px;
+    height: 1px;
+    background: #666;
+}
+
+.controls-divider::before {
+    right: 60%;
+}
+
+.controls-divider::after {
+    left: 60%;
+}
+
+.sound-toggle {
+    position: absolute;
+    top: 10px;
+    right: 80px;
+    font-size: 16px;
+    color: #fff;
+    cursor: pointer;
+    z-index: 1000;
+    padding: 5px;
+    user-select: none;
+}
+
+.sound-toggle.muted {
+    color: #666;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .game-container {
+        border: none;
+    }
+    
+    .controls-row {
+        font-size: 10px;
+        gap: 10px;
+    }
+    
+    .control-key {
+        min-width: 50px;
+    }
+    
+    .game-logo {
+        font-size: 28px;
+    }
+    
+    .credit-text {
+        font-size: 10px;
+    }
+    
+    .click-prompt {
+        font-size: 12px;
+    }
+    
+    .controls-info {
+        padding: 10px;
+        max-width: 240px;
+    }
+    
+    .score, .lives {
+        font-size: 7px;
+    }
+}
+
+/* Ensure controls are readable on very small screens */
+@media (max-height: 500px) {
+    .controls-info {
+        margin: 10px 0;
+    }
+    
+    .controls-row {
+        margin: 5px 0;
+    }
+    
+    .controls-divider {
+        margin: 10px 0;
+    }
+} 

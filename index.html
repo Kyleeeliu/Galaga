@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ripoff Galaga</title>
+    <title>Galaxy Defenders</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
@@ -16,16 +16,38 @@
             <h1>GAME OVER</h1>
             <p>Score: <span class="final-score">0</span></p>
             <p class="high-score"></p>
-            <p>Press SPACE to Return</p>
+            <p>Press SPACE or Tap to Return</p>
         </div>
         <div id="startScreen" class="overlay">
             <div class="logo-container">
-                <h1 class="galaga-logo">GALAXY DEFENDER</h1>
-                <div class="credit-text">BY KYLEEE</div>
-                <div class="click-prompt">CLICK TO START</div>
+                <h1 class="game-logo">GALAXY DEFENDERS</h1>
+                <div class="credit-text">BY KYLE LIU</div>
+                <div class="controls-info">
+                    <div class="controls-row">
+                        <span class="control-key">←→</span>
+                        <span class="control-desc">MOVE</span>
+                    </div>
+                    <div class="controls-row">
+                        <span class="control-key">SPACE</span>
+                        <span class="control-desc">SHOOT</span>
+                    </div>
+                    <div class="controls-row">
+                        <span class="control-key">P</span>
+                        <span class="control-desc">PAUSE</span>
+                    </div>
+                    <div class="controls-divider">OR</div>
+                    <div class="controls-row">
+                        <span class="control-desc">SWIPE TO MOVE</span>
+                    </div>
+                    <div class="controls-row">
+                        <span class="control-desc">TAP TO SHOOT</span>
+                    </div>
+                </div>
+                <div class="click-prompt">CLICK/TAP TO START</div>
             </div>
             <div class="start-high-score">HIGH SCORE: <span>0</span></div>
         </div>
+        <div id="soundToggle" class="sound-toggle">🔊</div>
     </div>
     <script src="game.js"></script>
 </body>
