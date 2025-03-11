@@ -280,8 +280,8 @@ canvas {
 
 .game-logo {
     font-size: 36px;
-    color: #0ff;
-    text-shadow: 0 0 20px #0ff;
+    color: #f00;
+    text-shadow: 0 0 20px #f00;
     animation: pulse 2s ease-in-out infinite;
     text-align: center;
     width: 100%;
@@ -292,11 +292,22 @@ canvas {
 
 .credit-text {
     font-size: 12px;
-    color: #0ff;
+    color: #f00;
     margin-top: 5px;
     margin-bottom: 20px;
-    text-shadow: 0 0 10px #0ff;
+    text-shadow: 0 0 10px #f00;
     opacity: 0.8;
+}
+
+.keyboard-notice {
+    color: #f00;
+    font-size: 12px;
+    margin-bottom: 15px;
+    text-shadow: 0 0 10px #f00;
+    padding: 5px 10px;
+    background: rgba(255, 0, 0, 0.1);
+    border-radius: 5px;
+    border: 1px solid rgba(255, 0, 0, 0.3);
 }
 
 .click-prompt {
@@ -310,9 +321,9 @@ canvas {
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); text-shadow: 0 0 20px #00f; }
-    50% { transform: scale(1.1); text-shadow: 0 0 40px #00f; }
-    100% { transform: scale(1); text-shadow: 0 0 20px #00f; }
+    0% { transform: scale(1); text-shadow: 0 0 20px #f00; }
+    50% { transform: scale(1.1); text-shadow: 0 0 40px #f00; }
+    100% { transform: scale(1); text-shadow: 0 0 20px #f00; }
 }
 
 @keyframes pulse-fade {
@@ -600,4 +611,23 @@ canvas {
     .restart-prompt {
         font-size: 10px;
     }
+}
+
+.crazygames-logo {
+    display: none;
+}
+
+.crazygames-logo:hover {
+    display: none;
+}
+
+.crazygames-logo img {
+    display: none;
+}
+
+/* Remove all touch-related controls and styles */
+.controls-row:has(.control-desc:contains("SWIPE")),
+.controls-row:has(.control-desc:contains("TAP")),
+.controls-divider {
+    display: none;
 } 

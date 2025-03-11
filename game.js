@@ -424,6 +424,39 @@ class Game {
         this.droneCooldown = 0;
         this.droneReloadTime = 120; // 2 seconds at 60fps
         
+        // Add touch control variables
+        this.touchStartX = 0;
+        this.touchEndX = 0;
+        this.swipeThreshold = 30; // minimum distance for swipe
+        
+        // Add touch event listeners
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.touchStartX = e.touches[0].clientX;
+        });
+        
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (this.gameState !== 'playing') return;
+            
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - this.touchStartX;
+            
+            // Update player position based on touch movement
+            this.player.x = Math.max(0, Math.min(this.canvas.width - this.player.width, 
+                this.player.x + deltaX));
+                
+            this.touchStartX = touch.clientX;
+        });
+        
+        this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (this.gameState !== 'playing') return;
+            
+            // Fire on touch release
+            this.createPlayerBullet(this.player.x + this.player.width / 2, this.player.y);
+        });
+        
         this.init();
     }
     
@@ -1573,37 +1606,16 @@ class Game {
         
         // Draw enemy bullets
         this.enemyBullets.forEach(bullet => {
-            // Add warning trail effect
             this.ctx.save();
-            this.ctx.strokeStyle = bullet.color;
-            this.ctx.lineWidth = 3;  // Thicker trail
-            this.ctx.globalAlpha = 0.3;
-            this.ctx.beginPath();
-            this.ctx.moveTo(bullet.x, bullet.y);
-            // Calculate trail end point based on bullet direction
-            const trailLength = 20;
-            this.ctx.lineTo(
-                bullet.x - (bullet.dx/bullet.speed) * trailLength, 
-                bullet.y - (bullet.dy/bullet.speed) * trailLength
-            );
-            this.ctx.stroke();
-            this.ctx.restore();
-
-            // Draw glow effect
-            this.ctx.save();
-            this.ctx.shadowColor = bullet.color;
-            this.ctx.shadowBlur = 15;
-            this.ctx.beginPath();
-            this.ctx.arc(bullet.x, bullet.y, bullet.width, 0, Math.PI * 2);
             this.ctx.fillStyle = bullet.color;
-            this.ctx.fill();
+            // Draw a pixelated square instead of a circle
+            this.ctx.fillRect(
+                Math.round(bullet.x - bullet.width / 2),
+                Math.round(bullet.y - bullet.height / 2),
+                bullet.width,
+                bullet.height
+            );
             this.ctx.restore();
-
-            // Draw bright core
-            this.ctx.beginPath();
-            this.ctx.arc(bullet.x, bullet.y, bullet.width * 0.7, 0, Math.PI * 2);
-            this.ctx.fillStyle = '#fff';
-            this.ctx.fill();
         });
         
         // Draw enemies
@@ -1785,37 +1797,16 @@ class Game {
 
         // Draw enhanced enemy bullets
         this.enemyBullets.forEach(bullet => {
-            // Add warning trail effect
             this.ctx.save();
-            this.ctx.strokeStyle = bullet.color;
-            this.ctx.lineWidth = 3;  // Thicker trail
-            this.ctx.globalAlpha = 0.3;
-            this.ctx.beginPath();
-            this.ctx.moveTo(bullet.x, bullet.y);
-            // Calculate trail end point based on bullet direction
-            const trailLength = 20;
-            this.ctx.lineTo(
-                bullet.x - (bullet.dx/bullet.speed) * trailLength, 
-                bullet.y - (bullet.dy/bullet.speed) * trailLength
-            );
-            this.ctx.stroke();
-            this.ctx.restore();
-
-            // Draw glow effect
-            this.ctx.save();
-            this.ctx.shadowColor = bullet.color;
-            this.ctx.shadowBlur = 15;
-            this.ctx.beginPath();
-            this.ctx.arc(bullet.x, bullet.y, bullet.width, 0, Math.PI * 2);
             this.ctx.fillStyle = bullet.color;
-            this.ctx.fill();
+            // Draw a pixelated square instead of a circle
+            this.ctx.fillRect(
+                Math.round(bullet.x - bullet.width / 2),
+                Math.round(bullet.y - bullet.height / 2),
+                bullet.width,
+                bullet.height
+            );
             this.ctx.restore();
-
-            // Draw bright core
-            this.ctx.beginPath();
-            this.ctx.arc(bullet.x, bullet.y, bullet.width * 0.7, 0, Math.PI * 2);
-            this.ctx.fillStyle = '#fff';
-            this.ctx.fill();
         });
         
         // Draw enemies
@@ -2906,36 +2897,21 @@ class Game {
     }
 
     createEnemyBullet(enemy, angle) {
-        const speed = Math.min(enemy.bulletSpeed, 4);
-        const isTracking = Math.random() < enemy.trackingChance;
+        const bullet = {
+            x: enemy.x + enemy.width / 2,
+            y: enemy.y + enemy.height,
+            width: 4,  // Make bullets slightly smaller than player bullets
+            height: 4,
+            speed: 5,
+            angle: angle || Math.PI / 2, // Default to straight down if no angle provided
+            color: '#f00'  // Red color for enemy bullets
+        };
         
-        let dx, dy;
-        if (isTracking) {
-            // Calculate direction to player
-            const toPlayerX = this.player.x - enemy.currentX;
-            const toPlayerY = this.player.y - enemy.currentY;
-            const dist = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY);
-            dx = (toPlayerX / dist) * (speed * 0.7); // Slower tracking bullets
-            dy = (toPlayerY / dist) * (speed * 0.7);
-        } else {
-            dx = Math.cos(angle) * speed;
-            dy = Math.sin(angle) * speed;
-        }
-
-        this.enemyBullets.push({
-            x: enemy.currentX + enemy.width/2,
-            y: enemy.currentY + enemy.height,
-            width: (enemy.isMegaBoss ? 6 : 4) * 1.2,
-            height: (enemy.isMegaBoss ? 8 : 6) * 1.2,
-            visualWidth: enemy.isMegaBoss ? 8 : 6,
-            visualHeight: enemy.isMegaBoss ? 10 : 8,
-            speed: speed,
-            dx: dx,
-            dy: dy,
-            color: isTracking ? '#f0f' : (enemy.isMegaBoss ? '#f00' : '#ff0'), // Purple for tracking bullets
-            trail: [],
-            isTracking: isTracking
-        });
+        // Add velocity components based on angle
+        bullet.vx = Math.cos(bullet.angle) * bullet.speed;
+        bullet.vy = Math.sin(bullet.angle) * bullet.speed;
+        
+        this.enemyBullets.push(bullet);
     }
 
     createExplosion(x, y, type) {
