@@ -76,18 +76,18 @@ class Game {
         
         // Initialize sounds
         this.sounds = {
-            shoot: new Audio('sounds/shoot.wav'),
-            explosion: new Audio('sounds/explosion.wav'),
-            powerUp: new Audio('sounds/powerup.wav'),
-            playerHit: new Audio('sounds/playerhit.wav'),
-            gameOver: new Audio('sounds/gameover.wav'),
-            waveComplete: new Audio('sounds/wave-complete.wav'),
-            bonus: new Audio('sounds/bonus.wav'),
-            levelUp: new Audio('sounds/level-up.wav'),
-            powerupHit: new Audio('sounds/powerup-hit.wav'),
-            powerupCollect: new Audio('sounds/powerup-collect.wav'),
-            powerupExpire: new Audio('sounds/powerup-expire.wav'),
-            clash: new Audio('sounds/clash.wav')
+            shoot: new Audio('galaga/sounds/shoot.wav'),
+            explosion: new Audio('galaga/sounds/explosion.wav'),
+            powerUp: new Audio('galaga/sounds/powerup.wav'),
+            playerHit: new Audio('galaga/sounds/playerhit.wav'),
+            gameOver: new Audio('galaga/sounds/gameover.wav'),
+            waveComplete: new Audio('galaga/sounds/wave-complete.wav'),
+            bonus: new Audio('galaga/sounds/bonus.wav'),
+            levelUp: new Audio('galaga/sounds/level-up.wav'),
+            powerupHit: new Audio('galaga/sounds/powerup-hit.wav'),
+            powerupCollect: new Audio('galaga/sounds/powerup-collect.wav'),
+            powerupExpire: new Audio('galaga/sounds/powerup-expire.wav'),
+            clash: new Audio('galaga/sounds/clash.wav')
         };
         
         // Mute all sounds initially (unmute on first click)
@@ -258,10 +258,10 @@ class Game {
         
         // Add more music tracks
         this.music = {
-            normal: new Audio('sounds/normal-theme.wav'),
-            boss: new Audio('sounds/boss-theme.wav'),
-            menu: new Audio('sounds/menu-theme.wav'),
-            gameover: new Audio('sounds/gameover-theme.wav')
+            normal: new Audio('galaga/sounds/normal-theme.wav'),
+            boss: new Audio('galaga/sounds/boss-theme.wav'),
+            menu: new Audio('galaga/sounds/menu-theme.wav'),
+            gameover: new Audio('galaga/sounds/gameover-theme.wav')
         };
 
         // Configure music
@@ -1352,31 +1352,13 @@ class Game {
                 if (enemy.shootCooldown >= enemy.shootInterval) {
                     // Create multiple bullet patterns
                     const patterns = [
-                        // Spread shot (reduced bullets)
+                        // Circle shot (radial, only pattern)
                         () => {
-                            const bulletCount = 3;  // Reduced from 5
-                            const spreadAngle = Math.PI / 6;  // Narrower spread (was PI/4)
-                            for (let i = 0; i < bulletCount; i++) {
-                                const angle = -Math.PI/2 + spreadAngle * (i - (bulletCount-1)/2);
-                                this.createEnemyBullet(enemy, angle);
-                            }
-                        },
-                        // Circle shot (reduced bullets)
-                        () => {
-                            const bulletCount = 6;  // Reduced from 8
+                            const bulletCount = 16;
                             for (let i = 0; i < bulletCount; i++) {
                                 const angle = (i / bulletCount) * Math.PI * 2;
                                 this.createEnemyBullet(enemy, angle);
                             }
-                        },
-                        // Aimed shot (reduced spread)
-                        () => {
-                            const dx = this.player.x - (enemy.currentX + enemy.width/2);
-                            const dy = this.player.y - (enemy.currentY + enemy.height);
-                            const angle = Math.atan2(dy, dx);
-                            this.createEnemyBullet(enemy, angle);
-                            this.createEnemyBullet(enemy, angle + 0.1);  // Reduced spread (was 0.2)
-                            this.createEnemyBullet(enemy, angle - 0.1);  // Reduced spread (was 0.2)
                         }
                     ];
 
@@ -2898,19 +2880,17 @@ class Game {
 
     createEnemyBullet(enemy, angle) {
         const bullet = {
-            x: enemy.x + enemy.width / 2,
-            y: enemy.y + enemy.height,
+            x: (enemy.currentX !== undefined ? enemy.currentX : enemy.x) + enemy.width / 2,
+            y: (enemy.currentY !== undefined ? enemy.currentY : enemy.y) + enemy.height,
             width: 4,  // Make bullets slightly smaller than player bullets
             height: 4,
             speed: 5,
             angle: angle || Math.PI / 2, // Default to straight down if no angle provided
             color: '#f00'  // Red color for enemy bullets
         };
-        
         // Add velocity components based on angle
         bullet.vx = Math.cos(bullet.angle) * bullet.speed;
         bullet.vy = Math.sin(bullet.angle) * bullet.speed;
-        
         this.enemyBullets.push(bullet);
     }
 
