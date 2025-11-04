@@ -3,15 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Galaxy Defenders</title>
+    <title>Galaxy Defenders - Space Shooter Game</title>
     <link rel="stylesheet" href="galaga.css">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
+    <header class="top-bar">
+        <div class="logo">Galaxy Defenders</div>
+        <nav class="nav-links">
+            <!-- Removed Portal navigation -->
+        </nav>
+    </header>
     <div class="game-container">
         <canvas id="gameCanvas"></canvas>
         <div class="score">Score: <span id="scoreValue">0</span></div>
         <div class="lives">Lives: <span id="livesValue">3</span></div>
+        
+        <!-- Audio and Fullscreen Controls -->
+        <div class="game-controls">
+            <button id="muteBtn" class="control-btn" title="Toggle Sound">
+                <span class="control-icon">🔊</span>
+            </button>
+            <button id="fullscreenBtn" class="control-btn" title="Fullscreen">
+                <span class="control-icon">⛶</span>
+            </button>
+        </div>
+        
+        <!-- Mobile Controls -->
+        <div id="mobileControls" class="mobile-controls hidden">
+            <div class="mobile-button left-btn" id="mobileLeft">←</div>
+            <div class="mobile-button right-btn" id="mobileRight">→</div>
+            <div class="mobile-button shoot-btn" id="mobileShoot">🔫</div>
+        </div>
         <div id="gameOverScreen" class="overlay hidden">
             <div class="game-over-container">
                 <h1>GAME OVER</h1>
@@ -28,12 +51,49 @@
                 </div>
             </div>
         </div>
-        <div id="startScreen" class="overlay">
+        <div id="loadingScreen" class="overlay">
             <div class="logo-container">
-                <h1 class="game-logo">GALAGA</h1>
+                <h1 class="game-logo">GALAXY DEFENDERS</h1>
+                <div class="loading-text">LOADING...</div>
+                <div class="loading-bar">
+                    <div class="loading-progress" id="loadingProgress"></div>
+                </div>
+            </div>
+        </div>
+        <div id="startScreen" class="overlay hidden">
+            <div class="logo-container">
+                <h1 class="game-logo">GALAXY DEFENDERS</h1>
                 <div class="credit-text">BY KYLE LIU</div>
+                
+                <!-- Game Mode Selection -->
+                <div class="game-mode-container">
+                    <div class="mode-title">SELECT GAME MODE</div>
+                    <div class="game-modes">
+                        <div class="game-mode" data-mode="classic">
+                            <div class="mode-icon">🎮</div>
+                            <div class="mode-name">CLASSIC</div>
+                            <div class="mode-desc">Traditional Galaga experience</div>
+                        </div>
+                        <div class="game-mode" data-mode="arcade">
+                            <div class="mode-icon">⚡</div>
+                            <div class="mode-name">ARCADE</div>
+                            <div class="mode-desc">Fast-paced action</div>
+                        </div>
+                        <div class="game-mode" data-mode="survival">
+                            <div class="mode-icon">🔥</div>
+                            <div class="mode-name">SURVIVAL</div>
+                            <div class="mode-desc">Endless waves challenge</div>
+                        </div>
+                        <div class="game-mode" data-mode="challenge">
+                            <div class="mode-icon">💀</div>
+                            <div class="mode-name">CHALLENGE</div>
+                            <div class="mode-desc">Hardcore difficulty</div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="controls-info">
-                    <div class="keyboard-notice">⌨️ KEYBOARD REQUIRED</div>
+                    <div class="keyboard-notice" id="controlsNotice">⌨️ KEYBOARD OR TOUCH</div>
                     <div class="controls-row">
                         <span class="control-key">←→</span>
                         <span class="control-desc">MOVE</span>
@@ -47,7 +107,8 @@
                         <span class="control-desc">PAUSE</span>
                     </div>
                 </div>
-                <div class="click-prompt">PRESS ANYWHERE TO START</div>
+                
+                <div class="mode-prompt">SELECT A MODE TO BEGIN</div>
             </div>
             <div class="start-high-score">HIGH SCORE: <span>0</span></div>
         </div>

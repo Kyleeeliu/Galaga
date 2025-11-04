@@ -42,6 +42,56 @@ class Game {
         // Add lives and game state
         this.lives = 3;
         this.gameState = 'title';  // Change initial state to 'title'
+        this.gameMode = null; // Selected game mode
+        
+        // Delta time for frame-rate independent movement
+        this.lastFrameTime = performance.now();
+        this.targetFPS = 60;
+        this.deltaTime = 1.0; // Normalized delta time (1.0 = 60fps)
+        
+        // Game mode configurations
+        this.gameModes = {
+            classic: {
+                name: 'CLASSIC',
+                lives: 3,
+                enemySpeedMultiplier: 1.0,
+                enemyAttackFrequency: 1.0,
+                enemyShootFrequency: 1.0,
+                waveDifficulty: 1.0,
+                endless: false,
+                description: 'Classic space shooter experience'
+            },
+            arcade: {
+                name: 'ARCADE',
+                lives: 3,
+                enemySpeedMultiplier: 1.3,
+                enemyAttackFrequency: 1.5,
+                enemyShootFrequency: 1.4,
+                waveDifficulty: 1.2,
+                endless: false,
+                description: 'Fast-paced action'
+            },
+            survival: {
+                name: 'SURVIVAL',
+                lives: 3,
+                enemySpeedMultiplier: 1.1,
+                enemyAttackFrequency: 1.2,
+                enemyShootFrequency: 1.1,
+                waveDifficulty: 1.15,
+                endless: true,
+                description: 'Endless waves challenge'
+            },
+            challenge: {
+                name: 'CHALLENGE',
+                lives: 1,
+                enemySpeedMultiplier: 1.5,
+                enemyAttackFrequency: 2.0,
+                enemyShootFrequency: 1.8,
+                waveDifficulty: 1.5,
+                endless: false,
+                description: 'Hardcore difficulty'
+            }
+        };
         
         // Add power-ups
         this.powerUps = [];
@@ -74,26 +124,31 @@ class Game {
             permanentDroneStacks: 0
         };
         
-        // Initialize sounds
+        // Initialize sounds with fallbacks for missing files
         this.sounds = {
-            shoot: new Audio('galaga/sounds/shoot.wav'),
-            explosion: new Audio('galaga/sounds/explosion.wav'),
-            powerUp: new Audio('galaga/sounds/powerup.wav'),
-            playerHit: new Audio('galaga/sounds/playerhit.wav'),
-            gameOver: new Audio('galaga/sounds/gameover.wav'),
-            waveComplete: new Audio('galaga/sounds/wave-complete.wav'),
-            bonus: new Audio('galaga/sounds/bonus.wav'),
-            levelUp: new Audio('galaga/sounds/level-up.wav'),
-            powerupHit: new Audio('galaga/sounds/powerup-hit.wav'),
-            powerupCollect: new Audio('galaga/sounds/powerup-collect.wav'),
-            powerupExpire: new Audio('galaga/sounds/powerup-expire.wav'),
-            clash: new Audio('galaga/sounds/clash.wav')
+            shoot: this.createAudio('galaga/sounds/shoot.wav'),
+            explosion: this.createAudio('galaga/sounds/explosion.wav'),
+            powerUp: this.createAudio('galaga/sounds/powerup.wav'),
+            playerHit: this.createAudio('galaga/sounds/playerhit.wav'),
+            gameOver: this.createAudio('galaga/sounds/gameover.wav'),
+            waveComplete: this.createAudio('galaga/sounds/explosion.wav'), // Fallback to explosion
+            bonus: this.createAudio('galaga/sounds/powerup.wav'), // Fallback to powerup
+            levelUp: this.createAudio('galaga/sounds/powerup.wav'), // Fallback to powerup
+            powerupHit: this.createAudio('galaga/sounds/powerup.wav'), // Fallback
+            powerupCollect: this.createAudio('galaga/sounds/powerup.wav'), // Fallback
+            powerupExpire: this.createAudio('galaga/sounds/powerup.wav'), // Fallback
+            clash: this.createAudio('galaga/sounds/explosion.wav') // Fallback to explosion
         };
+        
+        // Track mute state
+        this.isMuted = true;
         
         // Mute all sounds initially (unmute on first click)
         Object.values(this.sounds).forEach(sound => {
+            if (sound) {
             sound.volume = 0.3;
             sound.muted = true;
+            }
         });
         
         // Add death animation states
@@ -111,8 +166,8 @@ class Game {
         // Add debug mode
         this.debugMode = false;
         
-        // Adjust attack timing
-        this.attackCooldown = 90; // Reduced from 180 to 90 for more frequent attacks
+        // Adjust attack timing for more deliberate attacks
+        this.attackCooldown = 150; // Increased from 90 to 150 for more deliberate timing
         this.maxSimultaneousAttackers = 2; // Limit number of attacking enemies
         
         // Add difficulty settings
@@ -211,22 +266,22 @@ class Game {
         // Add enemy shooting properties
         this.enemyShootingConfig = {
             BOSS: { 
-                chance: 0.015, 
-                bulletSpeed: 3, 
+                chance: 0.008, // Reduced from 0.015 for more deliberate shooting
+                bulletSpeed: 2.5, // Reduced from 3
                 color: '#f00',
-                trackingChance: 0.3  // 30% chance for tracking bullets
+                trackingChance: 0.4  // Increased tracking for more tactical shots
             },
             ESCORT: { 
-                chance: 0.01, 
-                bulletSpeed: 2.5, 
+                chance: 0.005, // Reduced from 0.01
+                bulletSpeed: 2, // Reduced from 2.5
                 color: '#f80',
-                trackingChance: 0.2  // 20% chance for tracking bullets
+                trackingChance: 0.3  // Increased tracking
             },
             GRUNT: { 
-                chance: 0.005, 
-                bulletSpeed: 2, 
+                chance: 0.003, // Reduced from 0.005
+                bulletSpeed: 1.8, // Reduced from 2
                 color: '#ff0',
-                trackingChance: 0.1  // 10% chance for tracking bullets
+                trackingChance: 0.2  // Increased tracking
             }
         };
         
@@ -275,11 +330,11 @@ class Game {
         this.currentTrack = null;
         this.fadeInterval = null;
         
-        // Add enemy attack and shooting limits
+        // Add enemy attack and shooting limits for more deliberate gameplay
         this.enemyAttackConfig = {
-            maxAttacksPerWave: 15,  // Reduced from 20
+            maxAttacksPerWave: 10,  // Further reduced from 15 for more deliberate attacks
             currentAttacks: 0,
-            maxShotsPerWave: 60,    // Reduced from 100
+            maxShotsPerWave: 40,    // Further reduced from 60 for more deliberate shooting
             currentShots: 0
         };
         
@@ -460,6 +515,15 @@ class Game {
         this.init();
     }
     
+    createAudio(src) {
+        const audio = new Audio(src);
+        audio.addEventListener('error', () => {
+            // Silently handle missing audio files
+            console.warn(`Audio file not found: ${src}`);
+        });
+        return audio;
+    }
+    
     init() {
         // Event listeners for keyboard
         window.addEventListener('keydown', (e) => {
@@ -470,19 +534,9 @@ class Game {
             if (e.key.toLowerCase() === 'w') this.keys['ArrowUp'] = true;
             if (e.key.toLowerCase() === 's') this.keys['ArrowDown'] = true;
             
-            // Start game when space is pressed
+            // Start game when space is pressed (handled in initGameModeSelection)
             if (e.key === ' ') {
-                if (this.gameState === 'start') {
-                    this.gameState = 'playing';
-                    this.formations = this.createFormations();
-                    document.getElementById('startScreen').classList.add('hidden');
-                    
-                    // Unmute sounds on start
-                    Object.values(this.sounds).forEach(sound => sound.muted = false);
-                    Object.values(this.music).forEach(track => track.muted = false);
-                    this.music.normal.currentTime = 0;
-                    this.music.normal.play();
-                } else if (this.gameState === 'gameover') {
+                if (this.gameState === 'gameover') {
                     this.restart();
                 }
             }
@@ -521,37 +575,20 @@ class Game {
         // Remove click listener since we're using spacebar now
         this.canvas.removeEventListener('click', () => {});
         
-        // Create initial formations immediately
-        this.formations = this.createFormations();
+        // Initialize UI controls
+        this.initControls();
+        
+        // Show loading screen and load assets
+        this.loadAssets();
         
         // Start game loop
         this.gameLoop();
         
-        // Start normal music immediately
-        this.music.normal.volume = 0.2;
-        this.music.normal.muted = false;
-        this.music.normal.play();
-        this.currentTrack = this.music.normal;
+        // Initialize game mode selection
+        this.initGameModeSelection();
         
-        // Add click handler for logo
-        const startScreen = document.getElementById('startScreen');
-        const logoContainer = startScreen.querySelector('.logo-container');
-        
-        logoContainer.addEventListener('click', () => {
-            if (this.gameState === 'title') {
-                startScreen.classList.add('hidden');
-                this.gameState = 'playing';
-                
-                // Start game music
-                this.music.normal.volume = 0.2;
-                this.music.normal.muted = false;
-                this.music.normal.play();
-                this.currentTrack = this.music.normal;
-                
-                // Create initial formations
-                this.formations = this.createFormations();
-            }
-        });
+        // Initialize mobile controls
+        this.initMobileControls();
 
         // Add click handler for shooting
         this.canvas.addEventListener('click', () => {
@@ -571,7 +608,9 @@ class Game {
                         this.player.y
                     ));
                 }
-                this.sounds.shoot.play();
+                if (this.sounds.shoot && !this.isMuted) {
+                    this.sounds.shoot.play().catch(() => {});
+                }
             }
         });
     }
@@ -882,10 +921,12 @@ class Game {
         const boundedX = Math.min(Math.max(targetX, margin), this.canvas.width - margin);
         const boundedY = Math.min(Math.max(targetY, margin), this.canvas.height * 0.4);
 
-        // Add back the scaling factors
-        const powerScale = 1 + (this.wave * 0.1);  // 10% stronger each wave
-        const speedScale = 1 + (this.wave * 0.05); // 5% faster each wave
-        const healthScale = 1 + (Math.floor(this.wave / 3) * 0.2); // 20% more health every 3 waves
+        // Add back the scaling factors with game mode multiplier
+        const mode = this.gameMode ? this.gameModes[this.gameMode] : null;
+        const waveMultiplier = mode ? mode.waveDifficulty : 1.0;
+        const powerScale = (1 + (this.wave * 0.1)) * waveMultiplier;  // 10% stronger each wave
+        const speedScale = (1 + (this.wave * 0.05)) * waveMultiplier; // 5% faster each wave
+        const healthScale = (1 + (Math.floor(this.wave / 3) * 0.2)) * waveMultiplier; // 20% more health every 3 waves
 
         const enemy = {
             currentX: path ? path.startX : boundedX,
@@ -894,7 +935,8 @@ class Game {
             targetY: boundedY,
             width: isMegaBoss ? 135 : 30,  // Increased from 90 to 135 for mega boss
             height: isMegaBoss ? 135 : 30, // Increased from 90 to 135 for mega boss
-            speed: this.difficulties['normal'].enemySpeed * speedScale,
+            speed: (this.difficulties['normal'].enemySpeed * speedScale) * 
+                   (this.gameMode ? this.gameModes[this.gameMode].enemySpeedMultiplier : 1.0),
             inPosition: false,
             attacking: false,
             type: type,
@@ -952,7 +994,7 @@ class Game {
         
         if (this.gameState !== 'playing') return;
         
-        // Update attacking enemies with simpler movement
+        // Update attacking enemies with advanced movement patterns
         this.formations.forEach(enemy => {
             if (enemy.attacking) {
                 if (enemy.isMegaBoss) {
@@ -960,26 +1002,16 @@ class Game {
                     const dx = enemy.targetX - enemy.currentX;
                     const moveSpeed = 1;
                     
-                    // Gentle side-to-side movement
-                    enemy.currentX += Math.sin(Date.now() / 1000) * moveSpeed;
+                    // Gentle side-to-side movement (frame-rate independent)
+                    enemy.currentX += Math.sin(Date.now() / 1000) * moveSpeed * this.deltaTime;
                     
                     // Keep boss within screen bounds
                     enemy.currentX = Math.max(enemy.width/2, Math.min(this.canvas.width - enemy.width/2, enemy.currentX));
                     
                     // Boss shooting is handled in the shooting update section
                 } else {
-                    // Regular enemy diving attack
-                    const speed = 3;
-                    const dx = enemy.targetX - enemy.currentX;
-                    const dy = enemy.targetY - enemy.currentY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance > speed) {
-                        enemy.currentX += (dx / distance) * speed;
-                        enemy.currentY += (dy / distance) * speed;
-                    } else {
-                        enemy.currentX = -100; // Move off screen when done
-                    }
+                    // Advanced movement patterns for regular enemies
+                    this.updateEnemyAttackPattern(enemy);
                 }
             }
         });
@@ -1041,9 +1073,16 @@ class Game {
             // Advance wave
             this.wave++;
             
+            // Reset attack config for new wave
+            this.enemyAttackConfig.currentAttacks = 0;
+            this.enemyAttackConfig.currentShots = 0;
+            this.attackTimer = 0;
+            
             // Create new wave with delay
             setTimeout(() => {
+                if (this.gameState === 'playing') {
                 this.formations = this.createFormations();
+                }
             }, 1000);
         }
 
@@ -1053,10 +1092,15 @@ class Game {
             return indicator.alpha > 0;  // Remove when fully faded
         });
 
-        // Update enemy attacks with limits
+        // Update enemy attacks with enhanced formation attacks
         if (this.formations.length > 0) {
             this.attackTimer++;
-            if (this.attackTimer >= this.difficulties['normal'].attackCooldown && 
+            const mode = this.gameMode ? this.gameModes[this.gameMode] : null;
+            const attackCooldown = mode ? 
+                this.difficulties['normal'].attackCooldown / mode.enemyAttackFrequency :
+                this.difficulties['normal'].attackCooldown;
+            
+            if (this.attackTimer >= attackCooldown && 
                 this.enemyAttackConfig.currentAttacks < this.enemyAttackConfig.maxAttacksPerWave) {
                 
                 const availableEnemies = this.formations.filter(enemy => 
@@ -1066,8 +1110,16 @@ class Game {
                 if (availableEnemies.length > 0) {
                     const attackingCount = this.formations.filter(e => e.attacking).length;
                     if (attackingCount < this.difficulties['normal'].maxAttackers) {
+                        
+        // More deliberate formation attacks
+        const formationChance = 0.2 + (this.wave * 0.03); // Reduced from 0.3 to 0.2
+        if (Math.random() < formationChance && availableEnemies.length >= 2) {
+            this.startFormationAttack(availableEnemies);
+        } else {
+            // Single enemy attack
                         const enemy = availableEnemies[Math.floor(Math.random() * availableEnemies.length)];
                         this.startAttack(enemy);
+        }
                         this.enemyAttackConfig.currentAttacks++;
                     }
                 }
@@ -1087,41 +1139,9 @@ class Game {
 
             if (enemy.canShoot && enemy.currentX > -50 && 
                 this.enemyAttackConfig.currentShots < this.enemyAttackConfig.maxShotsPerWave) {
-                const shootChance = this.enemyShootingConfig[
-                    Object.keys(this.enemyTypes)[enemy.type]
-                ].chance;
                 
-                if (Math.random() < shootChance) {
-                    // Calculate angle towards player with random spread
-                    const dx = this.player.x - enemy.currentX;
-                    const dy = this.player.y - enemy.currentY;
-                    const baseAngle = Math.atan2(dy, dx);
-                    
-                    // Add random spread based on enemy type
-                    const spread = enemy.type === this.enemyTypes.BOSS ? Math.PI/6 : // 30 degrees
-                                  enemy.type === this.enemyTypes.ESCORT ? Math.PI/4 : // 45 degrees
-                                  Math.PI/3; // 60 degrees for grunts
-                    
-                    const finalAngle = baseAngle + (Math.random() - 0.5) * spread;
-                    
-                    const bulletSpeed = this.enemyShootingConfig[
-                        Object.keys(this.enemyTypes)[enemy.type]
-                    ].bulletSpeed;
-                    
-                    this.enemyBullets.push({
-                        x: enemy.currentX + enemy.width / 2,
-                        y: enemy.currentY + enemy.height,
-                        width: 4,
-                        height: 8,
-                        speed: bulletSpeed,
-                        dx: Math.cos(finalAngle) * bulletSpeed,
-                        dy: Math.sin(finalAngle) * bulletSpeed,
-                        color: this.enemyShootingConfig[
-                            Object.keys(this.enemyTypes)[enemy.type]
-                        ].color
-                    });
-                    this.enemyAttackConfig.currentShots++;
-                }
+                // Enhanced shooting based on enemy type and attack pattern
+                this.handleEnemyShooting(enemy);
             }
         });
 
@@ -1148,12 +1168,12 @@ class Game {
         // Update enemy bullets and check for collisions
         this.enemyBullets = this.enemyBullets.filter((bullet, index) => {
             if (bullet.dx !== undefined) {
-                // Move bullets according to their angle
-                bullet.x += bullet.dx;
-                bullet.y += bullet.dy;
+                // Move bullets according to their angle (frame-rate independent)
+                bullet.x += bullet.dx * this.deltaTime;
+                bullet.y += bullet.dy * this.deltaTime;
             } else {
                 // Regular straight-down movement for normal enemies
-                bullet.y += bullet.speed;
+                bullet.y += bullet.speed * this.deltaTime;
             }
             
             // Remove bullets that are off screen
@@ -1176,7 +1196,9 @@ class Game {
                 if (this.checkCollision(bullet, powerUp)) {
                     this.bullets.splice(bulletIndex, 1);
                     powerUp.health--;
-                    this.sounds.powerupHit.play();
+                    if (this.sounds.powerupHit && !this.isMuted) {
+                        this.sounds.powerupHit.play().catch(() => {});
+                    }
                     
                     if (powerUp.health <= 0) {
                         this.handlePowerUp(powerUp.type);
@@ -1187,12 +1209,12 @@ class Game {
             });
         });
 
-        // Update player movement
+        // Update player movement (frame-rate independent)
         if (this.keys['ArrowLeft'] && this.player.x > 0) {
-            this.player.x -= this.player.speed;
+            this.player.x -= this.player.speed * this.deltaTime;
         }
         if (this.keys['ArrowRight'] && this.player.x < this.canvas.width - this.player.width) {
-            this.player.x += this.player.speed;
+            this.player.x += this.player.speed * this.deltaTime;
         }
 
         // Update shooting
@@ -1240,7 +1262,9 @@ class Game {
                     this.droneCooldown--;
                 }
 
-                this.sounds.shoot.play();
+                if (this.sounds.shoot && !this.isMuted) {
+                    this.sounds.shoot.play().catch(() => {});
+                }
                 this.shooting = true;
                 if (this.autoFire) {
                     this.autoFireCooldown = now;
@@ -1269,10 +1293,10 @@ class Game {
             }
         });
 
-        // Update enemy bullets
+        // Update enemy bullets (frame-rate independent)
         this.enemyBullets = this.enemyBullets.filter((bullet) => {
-            bullet.x += bullet.dx;
-            bullet.y += bullet.dy;
+            bullet.x += bullet.dx * this.deltaTime;
+            bullet.y += bullet.dy * this.deltaTime;
 
             // Update trail for enemy bullets
             bullet.trail = bullet.trail || [];
@@ -1301,8 +1325,8 @@ class Game {
             if (enemy.currentX <= -50) return;  // Skip destroyed enemies
 
             if (!enemy.inPosition && enemy.path) {
-                // Use quadratic bezier curve for smooth movement
-                enemy.pathProgress = Math.min(1, enemy.pathProgress + 0.01);
+                // Use quadratic bezier curve for smooth movement (frame-rate independent)
+                enemy.pathProgress = Math.min(1, enemy.pathProgress + 0.01 * this.deltaTime);
                 const t = enemy.pathProgress;
                 const p0x = enemy.path.startX;
                 const p0y = enemy.path.startY;
@@ -1325,9 +1349,9 @@ class Game {
             // ... rest of enemy update code ...
         });
 
-        // Update stars movement
+        // Update stars movement (frame-rate independent)
         this.stars.forEach(star => {
-            star.y += star.speed;
+            star.y += star.speed * this.deltaTime;
             if (star.y > this.canvas.height) {
                 star.y = 0;
                 star.x = Math.random() * this.canvas.width;
@@ -1345,29 +1369,16 @@ class Game {
             }
         });
 
-        // Update boss shooting pattern
+        // Update boss shooting pattern with enhanced patterns
         this.formations.forEach(enemy => {
             if (enemy.isMegaBoss && enemy.inPosition) {
                 enemy.shootCooldown++;
                 if (enemy.shootCooldown >= enemy.shootInterval) {
-                    // Create multiple bullet patterns
-                    const patterns = [
-                        // Circle shot (radial, only pattern)
-                        () => {
-                            const bulletCount = 16;
-                            for (let i = 0; i < bulletCount; i++) {
-                                const angle = (i / bulletCount) * Math.PI * 2;
-                                this.createEnemyBullet(enemy, angle);
-                            }
-                        }
-                    ];
-
-                    // Randomly choose a pattern
-                    const pattern = patterns[Math.floor(Math.random() * patterns.length)];
-                    pattern();
-                    
+                    this.handleBossShooting(enemy);
                     enemy.shootCooldown = 0;
-                    this.sounds.shoot.play();
+                    if (this.sounds.shoot && !this.isMuted) {
+                    this.sounds.shoot.play().catch(() => {});
+                }
                 }
             }
         });
@@ -1412,7 +1423,9 @@ class Game {
                     enemy.attacking = false;
                     
                     // Play explosion sound
-                    this.sounds.explosion.play();
+                    if (this.sounds.explosion && !this.isMuted) {
+                        this.sounds.explosion.play().catch(() => {});
+                    }
                     
                     // Damage player
                     this.playerHit();
@@ -1468,7 +1481,9 @@ class Game {
                     this.enemyBullets.splice(enemyBulletIndex, 1);
                     
                     // Play clash sound
-                    this.sounds.clash.play();
+                    if (this.sounds.clash && !this.isMuted) {
+                        this.sounds.clash.play().catch(() => {});
+                    }
                 }
             });
         });
@@ -2208,6 +2223,15 @@ class Game {
     }
     
     gameLoop() {
+        // Calculate delta time for frame-rate independent movement
+        const currentTime = performance.now();
+        const elapsedTime = currentTime - this.lastFrameTime;
+        this.lastFrameTime = currentTime;
+        
+        // Normalize delta time to target 60 FPS (1.0 = 60fps)
+        // If running at 120fps, dt will be 0.5, if at 30fps it will be 2.0
+        this.deltaTime = Math.min(elapsedTime / (1000 / this.targetFPS), 3.0); // Cap at 3x to prevent huge jumps
+        
         this.update();
         this.draw();
         requestAnimationFrame(() => this.gameLoop());
@@ -2272,7 +2296,9 @@ class Game {
     }
 
     handlePowerUp(type) {
-        this.sounds.powerupCollect.play();
+        if (this.sounds.powerupCollect && !this.isMuted) {
+            this.sounds.powerupCollect.play().catch(() => {});
+        }
         this.createPowerUpEffect(type);
 
         switch(type) {
@@ -2282,7 +2308,9 @@ class Game {
                     setTimeout(() => {
                         if (!this.playerPowerUps.permanentShot) {
                             this.playerPowerUps.doubleShot = false;
-                            this.sounds.powerupExpire.play();
+                            if (this.sounds.powerupExpire && !this.isMuted) {
+                                this.sounds.powerupExpire.play().catch(() => {});
+                            }
                         }
                     }, 10000);
                 }
@@ -2293,7 +2321,9 @@ class Game {
                     setTimeout(() => {
                         if (!this.playerPowerUps.permanentSpeed) {
                             this.player.speed /= 1.5;
-                            this.sounds.powerupExpire.play();
+                            if (this.sounds.powerupExpire && !this.isMuted) {
+                                this.sounds.powerupExpire.play().catch(() => {});
+                            }
                         }
                     }, 8000);
                 }
@@ -2302,7 +2332,9 @@ class Game {
                 this.playerPowerUps.shield = true;
                 setTimeout(() => {
                     this.playerPowerUps.shield = false;
-                    this.sounds.powerupExpire.play();
+                    if (this.sounds.powerupExpire && !this.isMuted) {
+                        this.sounds.powerupExpire.play().catch(() => {});
+                    }
                 }, 5000);
                 break;
             case this.powerUpTypes.EXTRA_LIFE:
@@ -2323,7 +2355,9 @@ class Game {
                     setTimeout(() => {
                         if (!this.playerPowerUps.permanentBullet) {
                             this.playerPowerUps.bulletSpeed = false;
-                            this.sounds.powerupExpire.play();
+                            if (this.sounds.powerupExpire && !this.isMuted) {
+                                this.sounds.powerupExpire.play().catch(() => {});
+                            }
                         }
                     }, 10000);
                 }
@@ -2338,7 +2372,9 @@ class Game {
                             this.playerPowerUps.smallShip = false;
                             this.player.width /= 0.7;
                             this.player.height /= 0.7;
-                            this.sounds.powerupExpire.play();
+                            if (this.sounds.powerupExpire && !this.isMuted) {
+                                this.sounds.powerupExpire.play().catch(() => {});
+                            }
                         }
                     }, 12000);
                 }
@@ -2349,7 +2385,9 @@ class Game {
                     setTimeout(() => {
                         if (!this.playerPowerUps.permanentDrone) {
                             this.playerPowerUps.drone = false;
-                            this.sounds.powerupExpire.play();
+                            if (this.sounds.powerupExpire && !this.isMuted) {
+                                this.sounds.powerupExpire.play().catch(() => {});
+                            }
                         }
                     }, 15000);
                 }
@@ -2401,7 +2439,9 @@ class Game {
         
         this.lives--;
         document.getElementById('livesValue').textContent = this.lives;
-        this.sounds.playerHit.play();
+        if (this.sounds.playerHit && !this.isMuted) {
+            this.sounds.playerHit.play().catch(() => {});
+        }
         
         // Add invulnerability frames
         this.player.invulnerable = true;
@@ -2416,32 +2456,343 @@ class Game {
 
     async gameOver() {
         this.gameState = 'gameover';
-        this.sounds.gameOver.play();
+        if (this.sounds.gameOver && !this.isMuted) {
+            this.sounds.gameOver.play().catch(() => {});
+        }
 
         // Show game over screen
         document.getElementById('gameOverScreen').classList.remove('hidden');
         document.querySelector('.final-score').textContent = this.score;
 
-        // Check and display high score
-        const isNewHighScore = this.saveHighScore('normal', this.score);
+        // Check and display high score for current mode
+        const modeKey = this.gameMode || 'normal';
+        const isNewHighScore = this.saveHighScore(modeKey, this.score);
         document.querySelector('.high-score').textContent = 
-            `HIGH SCORE: ${this.highScores['normal']}` +
+            `HIGH SCORE: ${this.highScores[modeKey] || 0}` +
             (isNewHighScore ? ' NEW!' : '');
 
         // Fade to game over music
         this.fadeMusic(this.currentTrack, this.music.gameover);
     }
 
+    initControls() {
+        // Audio/Mute button
+        const muteBtn = document.getElementById('muteBtn');
+        if (muteBtn) {
+            muteBtn.addEventListener('click', () => {
+                this.toggleMute();
+            });
+        }
+        
+        // Fullscreen button
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener('click', () => {
+                this.toggleFullscreen();
+            });
+        }
+        
+        // Update mute button state
+        this.updateMuteButton();
+    }
+    
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        
+        // Mute/unmute all sounds
+        Object.values(this.sounds).forEach(sound => {
+            if (sound) {
+                sound.muted = this.isMuted;
+            }
+        });
+        
+        // Mute/unmute music
+        Object.values(this.music).forEach(track => {
+            if (track) {
+                track.muted = this.isMuted;
+            }
+        });
+        
+        this.updateMuteButton();
+    }
+    
+    updateMuteButton() {
+        const muteBtn = document.getElementById('muteBtn');
+        if (muteBtn) {
+            if (this.isMuted) {
+                muteBtn.classList.add('muted');
+                muteBtn.querySelector('.control-icon').textContent = '🔇';
+            } else {
+                muteBtn.classList.remove('muted');
+                muteBtn.querySelector('.control-icon').textContent = '🔊';
+            }
+        }
+    }
+    
+    toggleFullscreen() {
+        const container = document.querySelector('.game-container');
+        
+        if (!document.fullscreenElement) {
+            if (container.requestFullscreen) {
+                container.requestFullscreen();
+            } else if (container.webkitRequestFullscreen) {
+                container.webkitRequestFullscreen();
+            } else if (container.msRequestFullscreen) {
+                container.msRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+    }
+    
+    loadAssets() {
+        const loadingScreen = document.getElementById('loadingScreen');
+        const loadingProgress = document.getElementById('loadingProgress');
+        
+        if (!loadingScreen || !loadingProgress) return;
+        
+        let loaded = 0;
+        const total = Object.keys(this.sounds).length;
+        
+        // Load audio files
+        Object.values(this.sounds).forEach((sound, index) => {
+            if (sound) {
+                sound.addEventListener('canplaythrough', () => {
+                    loaded++;
+                    const progress = (loaded / total) * 100;
+                    if (loadingProgress) {
+                        loadingProgress.style.width = progress + '%';
+                    }
+                    
+                    if (loaded >= total) {
+                        // All assets loaded, hide loading screen
+                        setTimeout(() => {
+                            loadingScreen.classList.add('hidden');
+                            document.getElementById('startScreen').classList.remove('hidden');
+                        }, 500);
+                    }
+                });
+                
+                sound.addEventListener('error', () => {
+                    loaded++;
+                    const progress = (loaded / total) * 100;
+                    if (loadingProgress) {
+                        loadingProgress.style.width = progress + '%';
+                    }
+                    
+                    if (loaded >= total) {
+                        setTimeout(() => {
+                            loadingScreen.classList.add('hidden');
+                            document.getElementById('startScreen').classList.remove('hidden');
+                        }, 500);
+                    }
+                });
+                
+                // Trigger load
+                sound.load();
+            } else {
+                loaded++;
+            }
+        });
+        
+        // Fallback: if all audio fails, still show start screen after 2 seconds
+        setTimeout(() => {
+            if (loaded < total) {
+                loadingScreen.classList.add('hidden');
+                document.getElementById('startScreen').classList.remove('hidden');
+            }
+        }, 2000);
+    }
+    
+    initMobileControls() {
+        // Only show on mobile devices
+        if (window.innerWidth <= 768) {
+            const mobileControls = document.getElementById('mobileControls');
+            if (mobileControls) {
+                mobileControls.classList.remove('hidden');
+            }
+            
+            // Update controls notice
+            const notice = document.getElementById('controlsNotice');
+            if (notice) {
+                notice.textContent = '📱 TOUCH CONTROLS';
+            }
+        }
+        
+        // Mobile left button
+        const leftBtn = document.getElementById('mobileLeft');
+        if (leftBtn) {
+            leftBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.keys['ArrowLeft'] = true;
+            });
+            leftBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.keys['ArrowLeft'] = false;
+            });
+        }
+        
+        // Mobile right button
+        const rightBtn = document.getElementById('mobileRight');
+        if (rightBtn) {
+            rightBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.keys['ArrowRight'] = true;
+            });
+            rightBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.keys['ArrowRight'] = false;
+            });
+        }
+        
+        // Mobile shoot button
+        const shootBtn = document.getElementById('mobileShoot');
+        if (shootBtn) {
+            shootBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (this.gameState === 'playing') {
+                    this.keys[' '] = true;
+                    // Also trigger immediate shot
+                    if (this.playerPowerUps.doubleShot) {
+                        this.bullets.push(this.createPlayerBullet(
+                            this.player.x + this.player.width / 4,
+                            this.player.y
+                        ));
+                        this.bullets.push(this.createPlayerBullet(
+                            this.player.x + (this.player.width * 3) / 4,
+                            this.player.y
+                        ));
+                    } else {
+                        this.bullets.push(this.createPlayerBullet(
+                            this.player.x + this.player.width / 2,
+                            this.player.y
+                        ));
+                    }
+                    if (this.sounds.shoot && !this.isMuted) {
+                        this.sounds.shoot.play().catch(() => {});
+                    }
+                }
+            });
+            shootBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.keys[' '] = false;
+            });
+        }
+    }
+    
+    initGameModeSelection() {
+        const startScreen = document.getElementById('startScreen');
+        const gameModes = startScreen.querySelectorAll('.game-mode');
+        
+        gameModes.forEach(modeElement => {
+            modeElement.addEventListener('click', () => {
+                const mode = modeElement.getAttribute('data-mode');
+                this.selectGameMode(mode);
+            });
+            
+            // Add keyboard navigation
+            modeElement.addEventListener('mouseenter', () => {
+                modeElement.focus();
+            });
+        });
+        
+        // Allow space/enter to start after mode selection
+        document.addEventListener('keydown', (e) => {
+            if (this.gameState === 'title' && this.gameMode && (e.key === 'Enter' || e.key === ' ')) {
+                this.startGame();
+            }
+        });
+    }
+    
+    selectGameMode(mode) {
+        if (!this.gameModes[mode]) return;
+        
+        // Remove previous selection
+        document.querySelectorAll('.game-mode').forEach(el => {
+            el.classList.remove('selected');
+        });
+        
+        // Select new mode
+        const modeElement = document.querySelector(`[data-mode="${mode}"]`);
+        if (modeElement) {
+            modeElement.classList.add('selected');
+            this.gameMode = mode;
+            
+            // Update prompt
+            const prompt = document.querySelector('.mode-prompt');
+            if (prompt) {
+                prompt.textContent = `PRESS SPACE OR ENTER TO START`;
+            }
+            
+            // Play selection sound
+            if (this.sounds && this.sounds.shoot) {
+                this.sounds.shoot.play().catch(() => {});
+            }
+        }
+    }
+    
+    startGame() {
+        if (!this.gameMode || this.gameState !== 'title') return;
+        
+        const mode = this.gameModes[this.gameMode];
+        
+        // Apply mode settings
+        this.lives = mode.lives;
+        this.wave = 1;
+        this.score = 0;
+        
+        // Update lives display
+        document.getElementById('livesValue').textContent = this.lives;
+        document.getElementById('scoreValue').textContent = this.score;
+        
+        // Hide start screen
+        document.getElementById('startScreen').classList.add('hidden');
+        this.gameState = 'playing';
+        
+        // Start game music (respect mute state)
+        this.music.normal.volume = 0.2;
+        this.music.normal.muted = this.isMuted;
+        this.music.normal.play().catch(() => {});
+        this.currentTrack = this.music.normal;
+        
+        // Create initial formations
+        this.formations = this.createFormations();
+        
+        // Reset attack config
+        this.enemyAttackConfig.currentAttacks = 0;
+        this.enemyAttackConfig.currentShots = 0;
+    }
+
     restart() {
         this.fadeMusic(this.currentTrack, this.music.normal);
-        this.gameState = 'title';  // Change to title instead of playing
+        this.gameState = 'title';
+        this.gameMode = null; // Reset mode selection
         
         // Show/hide screens
         document.getElementById('gameOverScreen').classList.add('hidden');
         document.getElementById('startScreen').classList.remove('hidden');
         
-        // Update high score on start screen
-        document.querySelector('.start-high-score span').textContent = this.highScores['normal'] || 0;
+        // Reset mode selection UI
+        document.querySelectorAll('.game-mode').forEach(el => {
+            el.classList.remove('selected');
+        });
+        
+        // Reset prompt
+        const prompt = document.querySelector('.mode-prompt');
+        if (prompt) {
+            prompt.textContent = 'SELECT A MODE TO BEGIN';
+        }
+        
+        // Update high score on start screen (show overall highest)
+        const allHighScores = Object.values(this.highScores);
+        const overallHigh = allHighScores.length > 0 ? Math.max(...allHighScores) : 0;
+        document.querySelector('.start-high-score span').textContent = overallHigh;
         
         // Reset game state
         this.lives = 3;
@@ -2503,10 +2854,14 @@ class Game {
                     return e;
                 });
                 
-                this.sounds.explosion.play();
+                if (this.sounds.explosion && !this.isMuted) {
+                    this.sounds.explosion.play().catch(() => {});
+                }
             } else {
                 // Hit effect for boss not destroyed
-                this.sounds.powerupHit.play();
+                if (this.sounds.powerupHit && !this.isMuted) {
+                    this.sounds.powerupHit.play().catch(() => {});
+                }
             }
             return;
         }
@@ -2541,11 +2896,15 @@ class Game {
             this.score += Math.floor(baseScore * this.difficulties['normal'].scoreMultiplier * scoreMultiplier);
             document.getElementById('scoreValue').textContent = this.score;
             
-            this.sounds.explosion.play();
+            if (this.sounds.explosion && !this.isMuted) {
+                this.sounds.explosion.play().catch(() => {});
+            }
             this.waveStats.enemiesDefeated++;
         } else {
             // Hit effect for enemy not destroyed
-            this.sounds.powerupHit.play();
+            if (this.sounds.powerupHit && !this.isMuted) {
+                this.sounds.powerupHit.play().catch(() => {});
+            }
         }
     }
 
@@ -2575,47 +2934,582 @@ class Game {
         }
     }
 
-    startAttack(enemy) {
-        if (enemy.type !== this.enemyTypes.ESCORT) return;
+    updateEnemyAttackPattern(enemy) {
+        const time = Date.now() - enemy.attackStartTime;
+        const maxSpeed = enemy.maxSpeed || 2;
         
+        // Smooth acceleration to max speed (frame-rate independent)
+        if (enemy.currentSpeed < maxSpeed) {
+            enemy.currentSpeed = Math.min(maxSpeed, enemy.currentSpeed + enemy.acceleration * this.deltaTime);
+        }
+        const speed = enemy.currentSpeed;
+        
+        // Update pattern progress more slowly for smoother movement (frame-rate independent)
+        enemy.patternProgress += 0.01 * this.deltaTime;
+        
+        // Handle different attack patterns
+        switch (enemy.pattern) {
+            case 'DIVE':
+                this.handleDivePattern(enemy, speed);
+                break;
+            case 'SWEEP':
+                this.handleSweepPattern(enemy, speed, time);
+                break;
+            case 'ZIGZAG':
+                this.handleZigzagPattern(enemy, speed, time);
+                break;
+            case 'SPIRAL':
+                this.handleSpiralPattern(enemy, speed, time);
+                break;
+            case 'SPIRAL_DIVE':
+                this.handleSpiralDivePattern(enemy, speed, time);
+                break;
+            case 'STRAFE':
+                this.handleStrafePattern(enemy, speed, time);
+                break;
+            case 'STRAFE_RUN':
+                this.handleStrafeRunPattern(enemy, speed, time);
+                break;
+            case 'SWEEP_BOMBARD':
+                this.handleSweepBombardPattern(enemy, speed, time);
+                break;
+            case 'CIRCLE_STRAFE':
+                this.handleCircleStrafePattern(enemy, speed, time);
+                break;
+            // Formation attack patterns
+            case 'WAVE':
+                this.handleWavePattern(enemy, speed, time);
+                break;
+            case 'PINCER':
+                this.handlePincerPattern(enemy, speed, time);
+                break;
+            case 'BOMBARDMENT':
+                this.handleBombardmentPattern(enemy, speed, time);
+                break;
+            case 'COORDINATED_DIVE':
+                this.handleCoordinatedDivePattern(enemy, speed, time);
+                break;
+            default:
+                // Fallback to simple dive
+                this.handleDivePattern(enemy, speed);
+        }
+        
+        // Check if attack is complete
+        if (enemy.currentY > this.canvas.height + 50 || 
+            enemy.currentX < -50 || 
+            enemy.currentX > this.canvas.width + 50) {
+            enemy.attacking = false;
+            enemy.currentX = -100; // Move off screen
+        }
+    }
+    
+    handleDivePattern(enemy, speed) {
+        // Momentum-based dive towards target with natural curves
+        const dx = enemy.targetX - enemy.currentX;
+        const dy = enemy.targetY - enemy.currentY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 5) { // Only apply force if not too close
+            // Calculate desired velocity towards target
+            const desiredVelX = (dx / distance) * speed;
+            const desiredVelY = (dy / distance) * speed;
+            
+            // Add slight curve for natural movement
+            const curveFactor = Math.sin(enemy.patternProgress * 2) * 0.2;
+            const finalDesiredVelX = desiredVelX + curveFactor;
+            
+            // Apply force towards desired velocity
+            const forceX = (finalDesiredVelX - enemy.velocityX) * 0.1;
+            const forceY = (desiredVelY - enemy.velocityY) * 0.1;
+            
+            // Update velocity with force (frame-rate independent)
+            enemy.velocityX += forceX * this.deltaTime;
+            enemy.velocityY += forceY * this.deltaTime;
+            
+            // Apply friction (frame-rate independent)
+            const friction = Math.pow(enemy.friction, this.deltaTime);
+            enemy.velocityX *= friction;
+            enemy.velocityY *= friction;
+            
+            // Limit maximum velocity
+            const currentSpeed = Math.sqrt(enemy.velocityX * enemy.velocityX + enemy.velocityY * enemy.velocityY);
+            if (currentSpeed > enemy.maxVelocity) {
+                enemy.velocityX = (enemy.velocityX / currentSpeed) * enemy.maxVelocity;
+                enemy.velocityY = (enemy.velocityY / currentSpeed) * enemy.maxVelocity;
+            }
+            
+            // Update position (frame-rate independent)
+            enemy.currentX += enemy.velocityX * this.deltaTime;
+            enemy.currentY += enemy.velocityY * this.deltaTime;
+        }
+    }
+    
+    handleSweepPattern(enemy, speed, time) {
+        // Smooth horizontal sweep with gradual downward movement
+        const sweepSpeed = speed * 0.6; // Reduced for smoother movement
+        const downwardSpeed = speed * 0.2; // Slower downward movement
+        
+        // Determine sweep direction based on starting position
+        const sweepDirection = enemy.patternStartX < this.canvas.width / 2 ? 1 : -1;
+        
+        enemy.currentX += sweepDirection * sweepSpeed * this.deltaTime;
+        enemy.currentY += downwardSpeed * this.deltaTime;
+        
+        // Add gentle wave motion
+        enemy.currentY += Math.sin(time * 0.005) * 1.5 * this.deltaTime; // Slower, smaller wave
+    }
+    
+    handleZigzagPattern(enemy, speed, time) {
+        // Smooth zigzag movement with gradual amplitude changes
+        const baseSpeed = speed * 0.5; // Much slower forward movement
+        const zigzagAmplitude = (enemy.amplitude || 40) * 0.7; // Reduced amplitude
+        const zigzagFrequency = (enemy.frequency || 0.01) * 0.5; // Much slower frequency
+        
+        // Move forward slowly (frame-rate independent)
+        enemy.currentY += baseSpeed * this.deltaTime;
+        
+        // Add smooth zigzag motion with easing
+        const zigzagOffset = Math.sin(time * zigzagFrequency) * zigzagAmplitude;
+        const targetX = enemy.patternStartX + zigzagOffset;
+        
+        // Smooth interpolation to target position (frame-rate independent)
+        const lerpFactor = 0.1 * this.deltaTime;
+        enemy.currentX += (targetX - enemy.currentX) * lerpFactor;
+    }
+    
+    handleSpiralPattern(enemy, speed, time) {
+        // Smooth spiral movement with gradual shrinking
+        const spiralRadius = (enemy.spiralRadius || 50) * 0.8; // Reduced radius
+        const spiralSpeed = (enemy.spiralSpeed || 0.03) * 0.5; // Much slower spiral
+        const centerX = enemy.patternStartX;
+        const centerY = enemy.patternStartY;
+        
+        const angle = time * spiralSpeed;
+        const radius = spiralRadius * (1 - enemy.patternProgress * 0.3); // Slower shrinking
+        
+        const targetX = centerX + Math.cos(angle) * radius;
+        const targetY = centerY + Math.sin(angle) * radius + (time * 0.05); // Slower downward drift
+        
+        // Smooth interpolation (frame-rate independent)
+        const lerpFactor = 0.08 * this.deltaTime;
+        enemy.currentX += (targetX - enemy.currentX) * lerpFactor;
+        enemy.currentY += (targetY - enemy.currentY) * lerpFactor;
+    }
+    
+    handleSpiralDivePattern(enemy, speed, time) {
+        // Smooth spiral dive with gradual approach
+        const spiralRadius = (enemy.spiralRadius || 60) * 0.7; // Reduced radius
+        const spiralSpeed = (enemy.spiralSpeed || 0.05) * 0.4; // Much slower spiral
+        const centerX = enemy.patternStartX;
+        const centerY = enemy.patternStartY;
+        
+        const angle = time * spiralSpeed;
+        const radius = spiralRadius * (1 - enemy.patternProgress * 0.2); // Slower shrinking
+        
+        const targetX = centerX + Math.cos(angle) * radius;
+        const targetY = centerY + Math.sin(angle) * radius + (time * 0.08); // Slower downward movement
+        
+        // Smooth interpolation (frame-rate independent)
+        const lerpFactor = 0.06 * this.deltaTime;
+        enemy.currentX += (targetX - enemy.currentX) * lerpFactor;
+        enemy.currentY += (targetY - enemy.currentY) * lerpFactor;
+        
+        // Gentle tracking towards player (frame-rate independent)
+        if (enemy.tracking) {
+            const trackStrength = 0.02; // Much weaker tracking
+            const dx = this.player.x - enemy.currentX;
+            enemy.currentX += dx * trackStrength * this.deltaTime;
+        }
+    }
+    
+    handleStrafePattern(enemy, speed, time) {
+        // Smooth side-to-side strafing with gradual forward movement
+        const forwardSpeed = speed * 0.3; // Much slower forward movement
+        const strafeAmplitude = (enemy.amplitude || 40) * 0.6; // Reduced amplitude
+        
+        // Move forward slowly (frame-rate independent)
+        enemy.currentY += forwardSpeed * this.deltaTime;
+        
+        // Smooth strafing motion
+        const strafeOffset = Math.sin(time * 0.008) * strafeAmplitude; // Much slower strafing
+        const targetX = enemy.patternStartX + strafeOffset;
+        
+        // Smooth interpolation (frame-rate independent)
+        const lerpFactor = 0.12 * this.deltaTime;
+        enemy.currentX += (targetX - enemy.currentX) * lerpFactor;
+    }
+    
+    handleStrafeRunPattern(enemy, speed, time) {
+        // Smooth strafe run with controlled direction changes
+        const runSpeed = speed * 0.8; // Reduced from 1.2 to 0.8
+        const strafeAmplitude = (enemy.amplitude || 50) * 0.7; // Reduced amplitude
+        
+        // Move forward at moderate speed (frame-rate independent)
+        enemy.currentY += runSpeed * 0.6 * this.deltaTime;
+        
+        // Smooth strafing with controlled frequency
+        const strafeOffset = Math.sin(time * 0.015) * strafeAmplitude; // Slower than before
+        const targetX = enemy.patternStartX + strafeOffset;
+        
+        // Smooth interpolation with slight randomness (frame-rate independent)
+        const lerpFactor = 0.15 * this.deltaTime;
+        enemy.currentX += (targetX - enemy.currentX) * lerpFactor;
+        
+        // Add subtle randomness for unpredictability
+        enemy.currentX += (Math.random() - 0.5) * 0.8 * this.deltaTime; // Much smaller randomness
+    }
+    
+    handleSweepBombardPattern(enemy, speed, time) {
+        // Smooth sweep with deliberate bombardment pauses
+        const sweepSpeed = speed * 0.4; // Slower sweep
+        const bombardSpeed = speed * 0.5; // Slower bombardment
+        
+        // Smooth sweep motion (frame-rate independent)
+        const sweepDirection = enemy.patternStartX < this.canvas.width / 2 ? 1 : -1;
+        enemy.currentX += sweepDirection * sweepSpeed * this.deltaTime;
+        
+        // Deliberate bombardment-style downward movement with longer pauses
+        if (Math.sin(time * 0.015) > 0.2) { // Longer pauses, less frequent movement
+            enemy.currentY += bombardSpeed * this.deltaTime;
+        }
+    }
+    
+    handleCircleStrafePattern(enemy, speed, time) {
+        // Smooth circling around player
+        const circleRadius = enemy.circleRadius || 80; // Reduced radius
+        const circleSpeed = (enemy.circleSpeed || 0.02) * 0.6; // Much slower circling
+        const centerX = enemy.circleCenterX || this.player.x;
+        const centerY = enemy.circleCenterY || this.player.y;
+        
+        const angle = time * circleSpeed;
+        
+        const targetX = centerX + Math.cos(angle) * circleRadius;
+        const targetY = centerY + Math.sin(angle) * circleRadius;
+        
+        // Smooth interpolation to circle position (frame-rate independent)
+        const lerpFactor = 0.08 * this.deltaTime;
+        enemy.currentX += (targetX - enemy.currentX) * lerpFactor;
+        enemy.currentY += (targetY - enemy.currentY) * lerpFactor;
+        
+        // Gradually and smoothly move closer to player (frame-rate independent)
+        const approachSpeed = 0.2; // Much slower approach
+        enemy.circleRadius = Math.max(40, enemy.circleRadius - approachSpeed * this.deltaTime);
+    }
+    
+    handleWavePattern(enemy, speed, time) {
+        // Wave attack with delay
+        if (enemy.attackDelay && time < enemy.attackDelay) {
+            return; // Wait for delay
+        }
+        
+        // Move towards target with wave motion
+        const dx = enemy.targetX - enemy.currentX;
+        const dy = enemy.targetY - enemy.currentY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > speed) {
+            enemy.currentX += (dx / distance) * speed * this.deltaTime;
+            enemy.currentY += (dy / distance) * speed * this.deltaTime;
+            
+            // Add wave motion (frame-rate independent)
+            enemy.currentY += Math.sin(time * 0.02) * 3 * this.deltaTime;
+        }
+    }
+    
+    handlePincerPattern(enemy, speed, time) {
+        // Pincer movement - approach from sides
+        const dx = enemy.targetX - enemy.currentX;
+        const dy = enemy.targetY - enemy.currentY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > speed) {
+            enemy.currentX += (dx / distance) * speed * this.deltaTime;
+            enemy.currentY += (dy / distance) * speed * this.deltaTime;
+        }
+    }
+    
+    handleBombardmentPattern(enemy, speed, time) {
+        // Bombardment run - move to position and stay there
+        const dx = enemy.targetX - enemy.currentX;
+        const dy = enemy.targetY - enemy.currentY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > speed) {
+            enemy.currentX += (dx / distance) * speed * this.deltaTime;
+            enemy.currentY += (dy / distance) * speed * this.deltaTime;
+        } else {
+            // In position, add slight hovering motion (frame-rate independent)
+            enemy.currentX += Math.sin(time * 0.01) * 1 * this.deltaTime;
+            enemy.currentY += Math.cos(time * 0.015) * 0.5 * this.deltaTime;
+        }
+    }
+    
+    handleCoordinatedDivePattern(enemy, speed, time) {
+        // Coordinated dive with slight delay variations
+        const delay = enemy.attackDelay || 0;
+        if (time < delay) {
+            return;
+        }
+        
+        const dx = enemy.targetX - enemy.currentX;
+        const dy = enemy.targetY - enemy.currentY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > speed) {
+            enemy.currentX += (dx / distance) * speed * this.deltaTime;
+            enemy.currentY += (dy / distance) * speed * this.deltaTime;
+        }
+    }
+
+    startFormationAttack(availableEnemies) {
+        // Select 2-4 enemies for formation attack
+        const formationSize = Math.min(2 + Math.floor(Math.random() * 3), availableEnemies.length);
+        const selectedEnemies = [];
+        
+        // Select enemies that are close to each other
+        const centerEnemy = availableEnemies[Math.floor(Math.random() * availableEnemies.length)];
+        selectedEnemies.push(centerEnemy);
+        
+        // Find nearby enemies
+        const nearbyEnemies = availableEnemies.filter(enemy => 
+            enemy !== centerEnemy && 
+            Math.abs(enemy.currentX - centerEnemy.currentX) < 100 &&
+            Math.abs(enemy.currentY - centerEnemy.currentY) < 50
+        );
+        
+        // Add nearby enemies to formation
+        for (let i = 0; i < formationSize - 1 && i < nearbyEnemies.length; i++) {
+            selectedEnemies.push(nearbyEnemies[i]);
+        }
+        
+        // If we don't have enough nearby enemies, add random ones
+        while (selectedEnemies.length < formationSize && selectedEnemies.length < availableEnemies.length) {
+            const remainingEnemies = availableEnemies.filter(e => !selectedEnemies.includes(e));
+            if (remainingEnemies.length > 0) {
+                selectedEnemies.push(remainingEnemies[Math.floor(Math.random() * remainingEnemies.length)]);
+            } else {
+                break;
+            }
+        }
+        
+        // Choose formation attack pattern
+        const formationPatterns = ['WAVE_ATTACK', 'PINCER_MOVEMENT', 'BOMBARDMENT_RUN', 'COORDINATED_DIVE'];
+        const pattern = formationPatterns[Math.floor(Math.random() * formationPatterns.length)];
+        
+        // Execute formation attack
+        this.executeFormationAttack(selectedEnemies, pattern);
+    }
+    
+    executeFormationAttack(enemies, pattern) {
+        const centerX = enemies.reduce((sum, e) => sum + e.currentX, 0) / enemies.length;
+        const centerY = enemies.reduce((sum, e) => sum + e.currentY, 0) / enemies.length;
+        
+        switch (pattern) {
+            case 'WAVE_ATTACK':
+                this.executeWaveAttack(enemies, centerX, centerY);
+                break;
+            case 'PINCER_MOVEMENT':
+                this.executePincerMovement(enemies, centerX, centerY);
+                break;
+            case 'BOMBARDMENT_RUN':
+                this.executeBombardmentRun(enemies, centerX, centerY);
+                break;
+            case 'COORDINATED_DIVE':
+                this.executeCoordinatedDive(enemies, centerX, centerY);
+                break;
+        }
+    }
+    
+    executeWaveAttack(enemies, centerX, centerY) {
+        // Enemies attack in a wave formation
+        enemies.forEach((enemy, index) => {
+            enemy.attacking = true;
+            enemy.pattern = 'WAVE';
+            enemy.patternProgress = 0;
+            enemy.patternStartX = enemy.currentX;
+            enemy.patternStartY = enemy.currentY;
+            enemy.attackStartTime = Date.now();
+            
+            // Stagger the attacks slightly
+            enemy.attackDelay = index * 200; // 200ms delay between each enemy
+            
+            // Target spread across player area
+            const spread = 150;
+            enemy.targetX = this.player.x + (index - enemies.length/2) * (spread / enemies.length);
+            enemy.targetY = this.canvas.height + 50;
+            
+            enemy.speed = 1.5 + Math.random() * 0.5; // Much slower wave attacks
+            enemy.maxSpeed = enemy.speed;
+            enemy.currentSpeed = 0;
+            enemy.acceleration = 0.03;
+            enemy.canShoot = true;
+        });
+    }
+    
+    executePincerMovement(enemies, centerX, centerY) {
+        // Enemies attack from both sides
+        const leftEnemies = enemies.filter((_, index) => index % 2 === 0);
+        const rightEnemies = enemies.filter((_, index) => index % 2 === 1);
+        
+        [...leftEnemies, ...rightEnemies].forEach((enemy, index) => {
+            enemy.attacking = true;
+            enemy.pattern = 'PINCER';
+            enemy.patternProgress = 0;
+            enemy.patternStartX = enemy.currentX;
+            enemy.patternStartY = enemy.currentY;
+            enemy.attackStartTime = Date.now();
+            
+            // Alternate sides
+            const isLeft = index < leftEnemies.length;
+            enemy.targetX = isLeft ? this.player.x - 100 : this.player.x + 100;
+            enemy.targetY = this.player.y;
+            
+            enemy.speed = 1.8; // Slower pincer movement
+            enemy.maxSpeed = enemy.speed;
+            enemy.currentSpeed = 0;
+            enemy.acceleration = 0.04;
+            enemy.canShoot = true;
+        });
+    }
+    
+    executeBombardmentRun(enemies, centerX, centerY) {
+        // Enemies perform a coordinated bombardment
+        enemies.forEach((enemy, index) => {
+            enemy.attacking = true;
+            enemy.pattern = 'BOMBARDMENT';
+            enemy.patternProgress = 0;
+            enemy.patternStartX = enemy.currentX;
+            enemy.patternStartY = enemy.currentY;
+            enemy.attackStartTime = Date.now();
+            
+            // Spread across the top of the screen
+            const spread = this.canvas.width * 0.8;
+            enemy.targetX = (index / (enemies.length - 1)) * spread + (this.canvas.width * 0.1);
+            enemy.targetY = this.canvas.height * 0.3; // Stop at 30% down
+            
+            enemy.speed = 1.2; // Slower bombardment positioning
+            enemy.maxSpeed = enemy.speed;
+            enemy.currentSpeed = 0;
+            enemy.acceleration = 0.02;
+            enemy.canShoot = true;
+            enemy.bombardmentMode = true;
+        });
+    }
+    
+    executeCoordinatedDive(enemies, centerX, centerY) {
+        // Enemies dive in a coordinated pattern
+        enemies.forEach((enemy, index) => {
+            enemy.attacking = true;
+            enemy.pattern = 'COORDINATED_DIVE';
+            enemy.patternProgress = 0;
+            enemy.patternStartX = enemy.currentX;
+            enemy.patternStartY = enemy.currentY;
+            enemy.attackStartTime = Date.now();
+            
+            // Create a diamond formation dive
+            const angle = (index / enemies.length) * Math.PI * 2;
+            const radius = 80;
+            enemy.targetX = this.player.x + Math.cos(angle) * radius;
+            enemy.targetY = this.canvas.height + 50;
+            
+            enemy.speed = 1.6; // Slower coordinated dives
+            enemy.maxSpeed = enemy.speed;
+            enemy.currentSpeed = 0;
+            enemy.acceleration = 0.035;
+            enemy.canShoot = true;
+        });
+    }
+
+    startAttack(enemy) {
+        // Allow all enemy types to attack, not just escorts
         const currentAttackers = this.formations.filter(e => e.attacking).length;
-        const maxAttackers = Math.min(4, Math.floor(1 + this.wave/2));
+        const maxAttackers = Math.min(6, Math.floor(2 + this.wave/2)); // Increased max attackers
         
         if (currentAttackers >= maxAttackers) return;
         
-        const attackChance = 0.7 + (this.wave * 0.1);
+        // More deliberate attack chances based on enemy type
+        let attackChance;
+        if (enemy.type === this.enemyTypes.BOSS) {
+            attackChance = 0.2 + (this.wave * 0.03); // Bosses attack much less frequently but more strategically
+        } else if (enemy.type === this.enemyTypes.ESCORT) {
+            attackChance = 0.4 + (this.wave * 0.05); // Reduced from 0.6 to 0.4
+        } else {
+            attackChance = 0.25 + (this.wave * 0.04); // Reduced from 0.4 to 0.25
+        }
+        
+        // Apply game mode multiplier
+        const mode = this.gameMode ? this.gameModes[this.gameMode] : null;
+        if (mode) {
+            attackChance *= mode.enemyAttackFrequency;
+        }
+        
         if (Math.random() > attackChance) return;
         
         if (enemy.inPosition) {
             enemy.attacking = true;
             
-            // Random attack pattern selection
-            const patterns = ['DIVE', 'SWEEP', 'ZIGZAG'];
-            enemy.pattern = patterns[Math.floor(Math.random() * patterns.length)];
+            // Enhanced attack pattern selection based on enemy type
+            let patterns;
+            if (enemy.type === this.enemyTypes.BOSS) {
+                patterns = ['SPIRAL_DIVE', 'SWEEP_BOMBARD', 'STRAFE_RUN', 'CIRCLE_STRAFE'];
+            } else if (enemy.type === this.enemyTypes.ESCORT) {
+                patterns = ['DIVE', 'SWEEP', 'ZIGZAG', 'SPIRAL', 'STRAFE'];
+            } else {
+                patterns = ['DIVE', 'ZIGZAG', 'STRAFE']; // Simpler patterns for grunts
+            }
             
+            enemy.pattern = patterns[Math.floor(Math.random() * patterns.length)];
             enemy.patternProgress = 0;
             enemy.patternStartX = enemy.currentX;
             enemy.patternStartY = enemy.currentY;
+            enemy.attackStartTime = Date.now();
             
-            // Add some randomness to target position
-            const spreadX = 100; // pixels of horizontal spread
+            // Enhanced targeting with different strategies
+            const spreadX = 120; // Increased spread
             enemy.targetX = this.player.x + (Math.random() - 0.5) * spreadX;
             enemy.targetY = this.canvas.height + 50;
             
-            // Add random movement modifiers
-            enemy.amplitude = 50 + Math.random() * 50; // For zigzag/sweep patterns
-            enemy.frequency = 0.02 + Math.random() * 0.03; // Movement frequency
+            // Pattern-specific parameters with smoother, more realistic values
+            enemy.amplitude = 40 + Math.random() * 60; // Reduced amplitude for smoother movement
+            enemy.frequency = 0.008 + Math.random() * 0.015; // Slower frequency for smoother waves
+            enemy.speed = 1.2 + Math.random() * 0.8; // Much slower, more realistic speed
+            enemy.maxSpeed = enemy.speed; // Store max speed for acceleration
+            enemy.currentSpeed = 0; // Start from 0 for smooth acceleration
+            enemy.acceleration = 0.05; // Gradual acceleration
             
-            enemy.tracking = Math.random() < 0.7; // 70% chance to track player
+            // Add momentum and inertia for more natural movement
+            enemy.velocityX = 0;
+            enemy.velocityY = 0;
+            enemy.friction = 0.95; // Friction to slow down movement
+            enemy.maxVelocity = 2; // Maximum velocity
+            enemy.tracking = Math.random() < 0.6; // Reduced tracking for more natural movement
             enemy.canShoot = true;
+            enemy.shotsFired = 0;
+            enemy.maxShots = 1 + Math.floor(Math.random() * 2); // Fewer shots for more deliberate attacks
             
-            // Add attack indicator
+            // Add pattern-specific behaviors
+            if (enemy.pattern === 'SPIRAL_DIVE' || enemy.pattern === 'SPIRAL') {
+                enemy.spiralRadius = 80 + Math.random() * 40;
+                enemy.spiralSpeed = 0.05 + Math.random() * 0.03;
+            }
+            
+            if (enemy.pattern === 'CIRCLE_STRAFE') {
+                enemy.circleRadius = 100 + Math.random() * 50;
+                enemy.circleSpeed = 0.03 + Math.random() * 0.02;
+                enemy.circleCenterX = this.player.x;
+                enemy.circleCenterY = this.player.y;
+            }
+            
+            // Add attack indicator with enhanced visuals
             this.attackIndicators.push({
                 startX: enemy.currentX + enemy.width / 2,
                 startY: enemy.currentY + enemy.height / 2,
                 endX: enemy.targetX + enemy.width / 2,
                 endY: this.canvas.height - 50,
-                alpha: 1
+                alpha: 1,
+                pattern: enemy.pattern,
+                color: enemy.type === this.enemyTypes.BOSS ? '#ff0000' : 
+                       enemy.type === this.enemyTypes.ESCORT ? '#00ffff' : '#ffff00'
             });
             
             this.targetIndicators.push({
@@ -2650,7 +3544,9 @@ class Game {
                 scale: 0,
                 alpha: 0
             };
-            this.sounds.levelUp.play();
+            if (this.sounds.levelUp && !this.isMuted) {
+                this.sounds.levelUp.play().catch(() => {});
+            }
             
             // Fade to boss music
             this.fadeMusic(this.currentTrack, this.music.boss);
@@ -2857,8 +3753,14 @@ class Game {
         const volumeStep = 0.2 / steps;  // Max volume is 0.2
         let currentStep = 0;
 
-        if (from) from.play();
-        if (to) to.play();
+        if (from) {
+            from.muted = this.isMuted;
+            from.play().catch(() => {});
+        }
+        if (to) {
+            to.muted = this.isMuted;
+            to.play().catch(() => {});
+        }
 
         this.fadeInterval = setInterval(() => {
             currentStep++;
@@ -2878,19 +3780,367 @@ class Game {
         }, stepTime);
     }
 
-    createEnemyBullet(enemy, angle) {
+    handleEnemyShooting(enemy) {
+        let shootChance = this.enemyShootingConfig[
+            Object.keys(this.enemyTypes)[enemy.type]
+        ].chance;
+        
+        // Apply game mode multiplier
+        const mode = this.gameMode ? this.gameModes[this.gameMode] : null;
+        if (mode) {
+            shootChance *= mode.enemyShootFrequency;
+        }
+        
+        // Reduce shooting frequency in early waves (first 10 waves)
+        if (this.wave <= 10) {
+            const earlyWaveReduction = 0.5 + (this.wave * 0.05); // 50% reduction at wave 1, gradually increasing
+            shootChance *= earlyWaveReduction;
+        }
+        
+        // Slight increase in shooting chance for attacking enemies
+        const attackingBonus = enemy.attacking ? 0.005 : 0; // Reduced from 0.02 to 0.005
+        const finalChance = shootChance + attackingBonus;
+        
+        if (Math.random() < finalChance) {
+            // Different shooting patterns based on enemy type and attack pattern
+            if (enemy.attacking && enemy.pattern) {
+                this.handleAttackPatternShooting(enemy);
+            } else {
+                this.handleStandardShooting(enemy);
+            }
+            
+            // Reset cooldown
+            enemy.shootCooldown = enemy.shootInterval || 60;
+        }
+    }
+    
+    handleStandardShooting(enemy) {
+        // Standard shooting patterns for non-attacking enemies
+        const dx = this.player.x - enemy.currentX;
+        const dy = this.player.y - enemy.currentY;
+        const baseAngle = Math.atan2(dy, dx);
+        
+        // Add random spread based on enemy type
+        const spread = enemy.type === this.enemyTypes.BOSS ? Math.PI/8 : // 22.5 degrees
+                      enemy.type === this.enemyTypes.ESCORT ? Math.PI/6 : // 30 degrees
+                      Math.PI/4; // 45 degrees for grunts
+        
+        const finalAngle = baseAngle + (Math.random() - 0.5) * spread;
+        
+        const bulletSpeed = this.enemyShootingConfig[
+            Object.keys(this.enemyTypes)[enemy.type]
+        ].bulletSpeed;
+        
+        this.createEnemyBullet(enemy, finalAngle, bulletSpeed);
+        this.enemyAttackConfig.currentShots++;
+    }
+    
+    handleAttackPatternShooting(enemy) {
+        // Special shooting patterns during attacks
+        const bulletSpeed = this.enemyShootingConfig[
+            Object.keys(this.enemyTypes)[enemy.type]
+        ].bulletSpeed;
+        
+        switch (enemy.pattern) {
+            case 'SPIRAL_DIVE':
+            case 'SPIRAL':
+                // Spiral shooting pattern
+                this.createSpiralBullets(enemy, bulletSpeed);
+                break;
+            case 'SWEEP':
+            case 'SWEEP_BOMBARD':
+                // Sweep shooting pattern
+                this.createSweepBullets(enemy, bulletSpeed);
+                break;
+            case 'STRAFE':
+            case 'STRAFE_RUN':
+                // Strafe shooting pattern
+                this.createStrafeBullets(enemy, bulletSpeed);
+                break;
+            case 'CIRCLE_STRAFE':
+                // Circle strafe shooting
+                this.createCircleStrafeBullets(enemy, bulletSpeed);
+                break;
+            case 'ZIGZAG':
+                // Zigzag shooting pattern
+                this.createZigzagBullets(enemy, bulletSpeed);
+                break;
+            default:
+                // Default attack shooting
+                this.createAttackBullets(enemy, bulletSpeed);
+        }
+    }
+    
+    createSpiralBullets(enemy, bulletSpeed) {
+        // Create bullets in a spiral pattern
+        let bulletCount = 3 + Math.floor(Math.random() * 2);
+        
+        // Reduce bullet count in early waves
+        if (this.wave <= 10) {
+            bulletCount = Math.max(1, bulletCount - Math.floor((11 - this.wave) / 3));
+        }
+        
+        const startAngle = Math.random() * Math.PI * 2;
+        
+        for (let i = 0; i < bulletCount; i++) {
+            const angle = startAngle + (i * Math.PI * 2 / bulletCount);
+            this.createEnemyBullet(enemy, angle, bulletSpeed * 0.8);
+        }
+        this.enemyAttackConfig.currentShots += bulletCount;
+    }
+    
+    createSweepBullets(enemy, bulletSpeed) {
+        // Create bullets in a sweeping pattern
+        let bulletCount = 2 + Math.floor(Math.random() * 2);
+        
+        // Reduce bullet count in early waves
+        if (this.wave <= 10) {
+            bulletCount = Math.max(1, bulletCount - Math.floor((11 - this.wave) / 4));
+        }
+        
+        const baseAngle = Math.PI / 2; // Downward
+        const spread = Math.PI / 6; // 30 degree spread
+        
+        for (let i = 0; i < bulletCount; i++) {
+            const angle = baseAngle + (spread * (i / (bulletCount - 1) - 0.5));
+            this.createEnemyBullet(enemy, angle, bulletSpeed);
+        }
+        this.enemyAttackConfig.currentShots += bulletCount;
+    }
+    
+    createStrafeBullets(enemy, bulletSpeed) {
+        // Create bullets while strafing
+        const dx = this.player.x - enemy.currentX;
+        const dy = this.player.y - enemy.currentY;
+        const baseAngle = Math.atan2(dy, dx);
+        
+        // Add some spread for strafing
+        const spread = Math.PI / 8;
+        const angle = baseAngle + (Math.random() - 0.5) * spread;
+        
+        this.createEnemyBullet(enemy, angle, bulletSpeed * 1.1);
+        this.enemyAttackConfig.currentShots++;
+    }
+    
+    createCircleStrafeBullets(enemy, bulletSpeed) {
+        // Create bullets while circling
+        let bulletCount = 4;
+        
+        // Reduce bullet count in early waves
+        if (this.wave <= 10) {
+            bulletCount = Math.max(2, bulletCount - Math.floor((11 - this.wave) / 5));
+        }
+        
+        const centerX = enemy.circleCenterX || this.player.x;
+        const centerY = enemy.circleCenterY || this.player.y;
+        
+        for (let i = 0; i < bulletCount; i++) {
+            const angle = (i / bulletCount) * Math.PI * 2;
+            this.createEnemyBullet(enemy, angle, bulletSpeed * 0.9);
+        }
+        this.enemyAttackConfig.currentShots += bulletCount;
+    }
+    
+    createZigzagBullets(enemy, bulletSpeed) {
+        // Create bullets in zigzag pattern
+        let bulletCount = 2;
+        
+        // Reduce bullet count in early waves
+        if (this.wave <= 10) {
+            bulletCount = Math.max(1, bulletCount - Math.floor((11 - this.wave) / 6));
+        }
+        
+        const baseAngle = Math.PI / 2; // Downward
+        const zigzagOffset = Math.sin(Date.now() * 0.01) * Math.PI / 6;
+        
+        for (let i = 0; i < bulletCount; i++) {
+            const angle = baseAngle + zigzagOffset + (i - 0.5) * Math.PI / 12;
+            this.createEnemyBullet(enemy, angle, bulletSpeed);
+        }
+        this.enemyAttackConfig.currentShots += bulletCount;
+    }
+    
+    createAttackBullets(enemy, bulletSpeed) {
+        // Standard attack bullets with tracking
+        const dx = this.player.x - enemy.currentX;
+        const dy = this.player.y - enemy.currentY;
+        const baseAngle = Math.atan2(dy, dx);
+        
+        // Tighter spread for attacking enemies
+        const spread = Math.PI / 12; // 15 degrees
+        const angle = baseAngle + (Math.random() - 0.5) * spread;
+        
+        this.createEnemyBullet(enemy, angle, bulletSpeed * 1.2);
+        this.enemyAttackConfig.currentShots++;
+    }
+
+    handleBossShooting(enemy) {
+        // Enhanced boss shooting patterns
+        const patterns = [
+            'CIRCLE_BARRAGE',
+            'SPIRAL_BARRAGE', 
+            'TRACKING_SHOTS',
+            'WAVE_BARRAGE',
+            'EXPLOSIVE_RING',
+            'LASER_SWEEP'
+        ];
+        
+        const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+        
+        switch (pattern) {
+            case 'CIRCLE_BARRAGE':
+                this.createCircleBarrage(enemy);
+                break;
+            case 'SPIRAL_BARRAGE':
+                this.createSpiralBarrage(enemy);
+                break;
+            case 'TRACKING_SHOTS':
+                this.createTrackingShots(enemy);
+                break;
+            case 'WAVE_BARRAGE':
+                this.createWaveBarrage(enemy);
+                break;
+            case 'EXPLOSIVE_RING':
+                this.createExplosiveRing(enemy);
+                break;
+            case 'LASER_SWEEP':
+                this.createLaserSweep(enemy);
+                break;
+        }
+    }
+    
+    createCircleBarrage(enemy) {
+        // Create a full circle of bullets
+        let bulletCount = 20;
+        
+        // Reduce bullet count in early waves
+        if (this.wave <= 10) {
+            bulletCount = Math.max(8, bulletCount - Math.floor((11 - this.wave) * 1.5));
+        }
+        
+        for (let i = 0; i < bulletCount; i++) {
+            const angle = (i / bulletCount) * Math.PI * 2;
+            this.createEnemyBullet(enemy, angle, 4);
+        }
+    }
+    
+    createSpiralBarrage(enemy) {
+        // Create bullets in a spiral pattern
+        let bulletCount = 12;
+        
+        // Reduce bullet count in early waves
+        if (this.wave <= 10) {
+            bulletCount = Math.max(4, bulletCount - Math.floor((11 - this.wave) * 0.8));
+        }
+        
+        const spiralAngle = Date.now() * 0.01; // Rotating spiral
+        
+        for (let i = 0; i < bulletCount; i++) {
+            const angle = spiralAngle + (i * Math.PI * 2 / bulletCount);
+            this.createEnemyBullet(enemy, angle, 3.5);
+        }
+    }
+    
+    createTrackingShots(enemy) {
+        // Create multiple tracking shots
+        let bulletCount = 5;
+        
+        // Reduce bullet count in early waves
+        if (this.wave <= 10) {
+            bulletCount = Math.max(2, bulletCount - Math.floor((11 - this.wave) / 3));
+        }
+        
+        const baseAngle = Math.atan2(this.player.y - enemy.currentY, this.player.x - enemy.currentX);
+        const spread = Math.PI / 6; // 30 degree spread
+        
+        for (let i = 0; i < bulletCount; i++) {
+            const angle = baseAngle + (spread * (i / (bulletCount - 1) - 0.5));
+            this.createEnemyBullet(enemy, angle, 5);
+        }
+    }
+    
+    createWaveBarrage(enemy) {
+        // Create bullets in a wave pattern
+        let bulletCount = 8;
+        
+        // Reduce bullet count in early waves
+        if (this.wave <= 10) {
+            bulletCount = Math.max(3, bulletCount - Math.floor((11 - this.wave) / 2));
+        }
+        
+        const waveOffset = Math.sin(Date.now() * 0.005) * Math.PI / 4;
+        
+        for (let i = 0; i < bulletCount; i++) {
+            const angle = Math.PI / 2 + waveOffset + (i / bulletCount - 0.5) * Math.PI / 2;
+            this.createEnemyBullet(enemy, angle, 4.5);
+        }
+    }
+    
+    createExplosiveRing(enemy) {
+        // Create an expanding ring of bullets
+        let bulletCount = 16;
+        
+        // Reduce bullet count in early waves
+        if (this.wave <= 10) {
+            bulletCount = Math.max(6, bulletCount - Math.floor((11 - this.wave) * 1.2));
+        }
+        
+        const expansionSpeed = 0.1;
+        
+        for (let i = 0; i < bulletCount; i++) {
+            const angle = (i / bulletCount) * Math.PI * 2;
+            const bullet = {
+                x: enemy.currentX + enemy.width / 2,
+                y: enemy.currentY + enemy.height / 2,
+                width: 6,
+                height: 6,
+                speed: 2,
+                angle: angle,
+                color: '#ff6600',
+                expansionRadius: 0,
+                expansionSpeed: expansionSpeed
+            };
+            
+            bullet.dx = Math.cos(bullet.angle) * bullet.speed;
+            bullet.dy = Math.sin(bullet.angle) * bullet.speed;
+            this.enemyBullets.push(bullet);
+        }
+    }
+    
+    createLaserSweep(enemy) {
+        // Create a sweeping laser pattern
+        let bulletCount = 10;
+        
+        // Reduce bullet count in early waves
+        if (this.wave <= 10) {
+            bulletCount = Math.max(4, bulletCount - Math.floor((11 - this.wave) / 1.5));
+        }
+        
+        const sweepAngle = (Date.now() * 0.002) % (Math.PI * 2);
+        const sweepWidth = Math.PI / 3; // 60 degree sweep
+        
+        for (let i = 0; i < bulletCount; i++) {
+            const angle = sweepAngle + (sweepWidth * (i / (bulletCount - 1) - 0.5));
+            this.createEnemyBullet(enemy, angle, 6);
+        }
+    }
+
+    createEnemyBullet(enemy, angle, speed = 5) {
         const bullet = {
             x: (enemy.currentX !== undefined ? enemy.currentX : enemy.x) + enemy.width / 2,
             y: (enemy.currentY !== undefined ? enemy.currentY : enemy.y) + enemy.height,
-            width: 4,  // Make bullets slightly smaller than player bullets
-            height: 4,
-            speed: 5,
-            angle: angle || Math.PI / 2, // Default to straight down if no angle provided
-            color: '#f00'  // Red color for enemy bullets
+            width: 4,
+            height: 6,
+            speed: speed,
+            angle: angle || Math.PI / 2,
+            color: this.enemyShootingConfig[
+                Object.keys(this.enemyTypes)[enemy.type]
+            ].color || '#f00'
         };
+        
         // Add velocity components based on angle
-        bullet.vx = Math.cos(bullet.angle) * bullet.speed;
-        bullet.vy = Math.sin(bullet.angle) * bullet.speed;
+        bullet.dx = Math.cos(bullet.angle) * bullet.speed;
+        bullet.dy = Math.sin(bullet.angle) * bullet.speed;
         this.enemyBullets.push(bullet);
     }
 
